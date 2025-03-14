@@ -1,0 +1,11 @@
+#Ignore BTI_Objects file paths
+BTI_Objects/brain_to_image/
+BTI_Objects/trained_models/
+BTI_Objects/raw_dataset/
+BTI_Objects/processed_dataset/
+
+#Ignore file paths
+BTI_Objects_ProgressiveGAN/brain_to_image/
+BTI_Objects_ProgressiveGAN/trained_models/
+BTI_Objects_ProgressiveGAN/datasets/
+BTI_Objects_ProgressiveGAN/results/
