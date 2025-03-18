@@ -1,3 +1,6 @@
+#ignore specific files
+*.png
+
 #Ignore BTI_Objects file paths
 BTI_Objects/brain_to_image/
 BTI_Objects/trained_models/
