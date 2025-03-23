@@ -17,9 +17,9 @@ from skimage.metrics import structural_similarity as ssim
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
 from models.eegclassifier import convolutional_encoder_model, LSTM_Classifier
-from models.eeggan import (build_discriminator, build_EEGgan, build_generator,
-                           build_MoGCgenerator, build_MoGMgenerator,
-                           combine_loss_metrics, sample_images, save_model)
+from models.eeggan import (build_discriminator, build_EEGgan, build_MoGCgenerator, build_MoGMgenerator, build_generator)
+from models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
+from models.model_utils import (sample_images_eeg, save_model, combine_loss_metrics)
 import argparse
 
 ## new metrics
@@ -56,19 +56,25 @@ main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__))))
 os.chdir(main_dir) #Jared Edition
 
 parser = argparse.ArgumentParser(description="Process some variables.")
-parser.add_argument('--eeg_dataset_dir', type=str, help="Directory to eeg datasets", default = "processed_dataset/filter_mne_car/All" , required=False)
-parser.add_argument('--eeg_dataset_file_path', type=str, help="specific eeg file to use", default = "000thresh_AllStackLstm_All.pkl" , required=False)
+parser.add_argument('--eeg_dataset_dir', type=str, help="Directory to eeg datasets", default = "processed_dataset/filter_mne_car/LSTM_encoder/All" , required=False)
+parser.add_argument('--eeg_dataset_file_path', type=str, help="specific eeg file to use LSTM: 000thresh_AllStackLstm_All.pkl / CNN: 000thresh_AllSlidingCNN_All.pkl", default = "000thresh_AllStackLstm_All.pkl" , required=False)
 
 parser.add_argument('--model_dir', type=str, help="specific eeg file to use", default = "trained_models" , required=False)
-parser.add_argument('--classifier_file_path', type=str, help="specific eeg file to use", default = "All/000thresh/LSTM_all_stacked_signals" , required=False)
-parser.add_argument('--gan_file_path', type=str, help="specific eeg file to use", default = "000thresh_MoGC" , required=False)
+parser.add_argument('--classifier_file_path', type=str, help="specific eeg file to use LSTM: All/000thresh/LSTM_all_stacked_signals / CNN: All/000thresh/CNN_all_stacked_signals", default = "All/000thresh/LSTM_all_stacked_signals" , required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or Caps", default = "AC",required=False)
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM", default = "LSTM")
+
+parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
+parser.add_argument('--gan_file_path', type=str, help="specific eeg file to use", default = "000thresh" , required=False)
 
 parser.add_argument('--output_dir', type=str, help="Directory to save processed file", default = "results",required=False)
+parser.add_argument('--output_name', type=str, help="Directory to save processed file", default = "LSTM_ACGAN",required=False)
 args = parser.parse_args()
 
 eeg_latent_dim = 128
 class_labels = [0,1,2,3,4,5,6,7,8,9]
 valid_threshold = 0.5
+
 
 ## load the eeg training data
 dataset = "2022Data"
@@ -89,24 +95,44 @@ print(f" Loading Object images from {data_file}")
 ## #############
 # Build EEG Gan
 ## #############
-prefix = "MoGC"
+generator_type = args.model_type #C for concatenation M for Multiplication B for Basic
+if args.GAN_type == "AC":
+    if generator_type == "B":
+        model_type = "Basic"
+    else:
+        model_type = f"MoG{generator_type}"
+
+else: model_type = args.GAN_type
+
+output_dir = f"{args.output_dir}/{args.output_name}/{args.gan_file_path}_{model_type}"
+
+prefix = model_type
 model_dir = args.model_dir
 
-gan_dir = f"{model_dir}/GANs/{args.gan_file_path}"
+gan_dir = f"{model_dir}/GANs/{args.classifierType}_GAN/{args.GAN_type}/{args.gan_file_path}_{model_type}"
 
+print(eeg_data['x_train_img'][0].shape)
 
-if prefix == "MoGC":
-    generator = build_MoGCgenerator(eeg_latent_dim,eeg_data['x_train_img'][0].shape[2],len(class_labels))
-elif prefix == "MoGM":
-    generator = build_MoGMgenerator(eeg_latent_dim,eeg_data['x_train_img'][0].shape[2],len(class_labels))
-elif prefix == "Basic":
-    generator = build_generator(eeg_latent_dim,eeg_data['x_train_img'][0].shape[2],len(class_labels))
+if args.GAN_type == "AC":
+    if prefix == "MoGC":
+        generator = build_MoGCgenerator(eeg_latent_dim,eeg_data['x_train_img'][0].shape[2],len(class_labels))
+    elif prefix == "MoGM":
+        generator = build_MoGMgenerator(eeg_latent_dim,eeg_data['x_train_img'][0].shape[2],len(class_labels))
+    elif prefix == "Basic":
+        generator = build_generator(eeg_latent_dim,eeg_data['x_train_img'][0].shape[2],len(class_labels))
+    generator.load_weights(f"{gan_dir}/{prefix}_EEGGan_generator_weights.h5")
+    discriminator = build_discriminator((28,28,3),len(class_labels))
+
+elif args.GAN_type == "DC":
+    generator = build_dc_generator(eeg_latent_dim, eeg_data['x_train_img'][0].shape[2],len(class_labels))
+    generator.load_weights(f"{gan_dir}/{prefix}_EEGGan_generator_weights.h5")
+
+    discriminator = build_dc_discriminator((eeg_data['x_train_img'][0].shape[0], eeg_data['x_train_img'][0].shape[1],eeg_data['x_train_img'][0].shape[2]),len(class_labels))
 
 #generator = build_MoGMgenerator(eeg_latent_dim,1,len(class_labels))
 #generator = build_MoGCgenerator(eeg_latent_dim,1,len(class_labels))
 
-generator.load_weights(f"{gan_dir}/{prefix}_EEGGan_generator_weights.h5")
-discriminator = build_discriminator((28,28,3),len(class_labels))
+
 combined = build_EEGgan(eeg_latent_dim,len(class_labels),generator,discriminator)
 combined.load_weights(f"{gan_dir}/{prefix}_EEGgan_combined_weights.h5")
 
@@ -114,7 +140,12 @@ combined.load_weights(f"{gan_dir}/{prefix}_EEGgan_combined_weights.h5")
 # EEG Classifier/Encoder
 ## #############
 classifier_dir = f"{model_dir}/classifiers/{args.classifier_file_path}"
-classifier = LSTM_Classifier(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels))
+
+if args.classifierType == "LSTM":
+    classifier = LSTM_Classifier(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels))
+
+elif args.classifierType == "CNN":
+    classifier = convolutional_encoder_model(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels))
 
 classifier_model_path = f"{classifier_dir}/eeg_classifier_adm5_final.h5"
 classifier.load_weights(classifier_model_path)
@@ -158,7 +189,7 @@ for i in class_labels:  ## outer loop per class
 
 
 
-def save_imgs(images, name, class_label, conditioning_labels, predicted_labels):
+def save_imgs(images, name, class_label, conditioning_labels, predicted_labels, output_dir):
     # Set up the grid dimensions (10x10)
     rows = 10
     cols = 10
@@ -178,9 +209,9 @@ def save_imgs(images, name, class_label, conditioning_labels, predicted_labels):
 
 
     # Save the grid of images to a file
-    output_path = f'results/OriginalEEGan/{name}_class{class_label}.png'
-    if not os.path.exists(main_dir + "/results/OriginalEEGan"):
-        os.makedirs(main_dir + "/results/OriginalEEGan")
+    output_path = f'{output_dir}/{name}_class{class_label}.png'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     plt.tight_layout()
     plt.savefig(output_path, dpi=300)
     plt.close()
@@ -273,6 +304,7 @@ num_of_sample_images = 10
 
 sample_img_per_class = []
 list_of_labels = []
+text_to_save = []
 
 evaluation ={}
 for i in class_labels:
@@ -301,8 +333,8 @@ for i in class_labels:
     list_of_labels.append(labels_array)
 
 
-    save_imgs(class_data['true'], "Real", i, true_labels_array, true_labels_array)
-    save_imgs(class_data['generated'], "Generated", i ,conditioning_labels_array, predicted_labels_array)
+    save_imgs(class_data['true'], "Real", i, true_labels_array, true_labels_array, output_dir)
+    save_imgs(class_data['generated'], "Generated", i ,conditioning_labels_array, predicted_labels_array, output_dir)
 
     for j in range(class_data['generated'].shape[0]):
         if i == np.argmax(class_data['predicted'][j]):
@@ -341,7 +373,9 @@ for i in class_labels:
 
     evaluation[i] = {'average_ssim':np.mean(ssim_scores),'average_rmse':np.mean(rmse_scores),'average_psnr':np.mean(psnr_scores),'average_fsim':np.mean(fsim_scores),'average_uiq':np.mean(uiq_scores)}
     class_acc = true_positives / class_data['generated'].shape[0]
-    print(f"Class {i}: mean ssim: {evaluation[i]['average_ssim']:.2f}, mean rmse: {evaluation[i]['average_rmse']:.2f}, mean psnr: {evaluation[i]['average_psnr']:.2f}, mean fsim: {evaluation[i]['average_fsim']:.2f}, mean uiq: {evaluation[i]['average_uiq']:.2f},classification acc: {class_acc:.1%}")
+    text_to_print = f"Class {i}: mean ssim: {evaluation[i]['average_ssim']:.2f}, mean rmse: {evaluation[i]['average_rmse']:.2f}, mean psnr: {evaluation[i]['average_psnr']:.2f}, mean fsim: {evaluation[i]['average_fsim']:.2f}, mean uiq: {evaluation[i]['average_uiq']:.2f},classification acc: {class_acc:.1%}"
+    text_to_save.append(text_to_print)
+    print(text_to_print)
 
 
 mean_ssim_scores.append(evaluation[i]['average_ssim'])
@@ -355,12 +389,18 @@ mean_accuracy_scores.append(class_acc)
 
 
 mean_evaluation = {'average_ssim':np.mean(ssim_scores),'average_rmse':np.mean(rmse_scores),'average_psnr':np.mean(psnr_scores),'average_fsim':np.mean(fsim_scores),'average_uiq':np.mean(uiq_scores), 'average_accuracy':np.mean(mean_accuracy_scores)}
-print(f"Average Class Results: mean ssim: {mean_evaluation['average_ssim']:.2f}, mean rmse: {mean_evaluation['average_rmse']:.2f}, mean psnr: {mean_evaluation['average_psnr']:.2f}, mean fsim: {mean_evaluation['average_fsim']:.2f}, mean uiq: {mean_evaluation['average_uiq']:.2f},mean classification acc: {mean_evaluation['average_accuracy']:.1%}")
+mean_text_to_print = f"Average Class Results: mean ssim: {mean_evaluation['average_ssim']:.2f}, mean rmse: {mean_evaluation['average_rmse']:.2f}, mean psnr: {mean_evaluation['average_psnr']:.2f}, mean fsim: {mean_evaluation['average_fsim']:.2f}, mean uiq: {mean_evaluation['average_uiq']:.2f},mean classification acc: {mean_evaluation['average_accuracy']:.1%}"
+print(mean_text_to_print)
+text_to_save.append(mean_text_to_print)
+
 stacked_images = np.stack(sample_img_per_class, axis=0)
 stacked_labels = np.stack(list_of_labels, axis = 0)
 
 stacked_images = stacked_images.reshape(-1, 28, 28, 3)
 stacked_labels = stacked_labels.reshape(-1)
-save_imgs(stacked_images, "Sampling image of each class", "all" ,stacked_labels, stacked_labels)
+save_imgs(stacked_images, "Sampling image of each class", "all" ,stacked_labels, stacked_labels, output_dir)
+
+with open(f"{output_dir}/results.txt", "w") as file:
+    file.write("\n".join(text_to_save) + "\n")
 
 pass

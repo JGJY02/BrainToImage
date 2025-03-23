@@ -37,11 +37,11 @@ Examples:
 """
 #Argument parser 
 parser = argparse.ArgumentParser(description="Process some variables.")
-parser.add_argument('--root_dir', type=str, help="Directory to the dataset", default = "processed_dataset/filter_mne_car",required=False)
+parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder", default = "processed_dataset/filter_mne_car/CNN_encoder",required=False)
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training", default = "000thresh_AllStackLstm_All.pkl" , required=False)
-parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "LSTM" , required=False)
-parser.add_argument('--model_name', type=str, help="Name of the model", default= "LSTM_all_stacked_signals_256", required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl", default = "000thresh_AllSlidingCNN_All.pkl" , required=False)
+parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "windowed" , required=False)
+parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/classifiers",required=False)
 args = parser.parse_args()
 
@@ -101,7 +101,7 @@ elif args.imageOrwindowed == "LSTM":
     batch_size, num_epochs = 128, 100 #128, 150
 
 
-else:
+elif args.imageOrwindowed == "windowed":
     classifier = convolutional_encoder_model(x_train.shape[1], x_train.shape[2], 10) # _expanded
     batch_size, num_epochs = 128, 150 #128, 150
 

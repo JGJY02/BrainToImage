@@ -796,20 +796,51 @@ def band_frequancy_intersections(freqs,bands):
     return idx_delta,idx_theta,idx_alpha,idx_beta,idx_gamma
 
 # function to Create windowed data based on window 32, overlap 4 = step size 28
-def sliding_window_eeg(signal, window_size=32, overlap=4):
+# def sliding_window_eeg(signal, window_size=32, overlap=4):
+#     """
+#     Apply a sliding window with overlap to a 2-second EEG signal.
+
+#     Parameters:
+#     signal (numpy.ndarray): 1D array of EEG signal data (256 samples)
+#     window_size (int): Size of each window (default: 32)
+#     overlap (int): Number of overlapping samples between windows (default: 4)
+
+#     Returns:
+#     numpy.ndarray: 2D array of windowed data
+#     """
+#     if len(signal) != 256:
+#         raise ValueError("Signal length must be 256 samples (2 seconds at 128Hz)")
+
+#     # Calculate the step size
+#     step = window_size - overlap
+
+#     # Calculate the number of windows
+#     num_windows = (len(signal) - window_size) // step + 1
+
+#     # Create an empty array to store the windowed data
+#     windowed_data = np.zeros((num_windows, window_size, 1))
+
+#     # Apply the sliding window
+#     for i in range(num_windows):
+#         start = i * step
+#         end = start + window_size
+#         windowed_data[i] = signal[start:end].reshape(window_size,1)
+    # return windowed_data
+
+def sliding_window_eeg(signal, window_size=32, overlap=31): #Modified sliding due to a different sampling rate
     """
     Apply a sliding window with overlap to a 2-second EEG signal.
 
     Parameters:
     signal (numpy.ndarray): 1D array of EEG signal data (256 samples)
     window_size (int): Size of each window (default: 32)
-    overlap (int): Number of overlapping samples between windows (default: 4)
+    overlap (int): Number of overlapping samples between windows (default: 31) To match to LSTM method
 
     Returns:
     numpy.ndarray: 2D array of windowed data
     """
-    if len(signal) != 256:
-        raise ValueError("Signal length must be 256 samples (2 seconds at 128Hz)")
+    if len(signal) != 50:
+        raise ValueError("Signal length must be 50 samples (50 ms at 1000Hz)")
 
     # Calculate the step size
     step = window_size - overlap
@@ -825,6 +856,7 @@ def sliding_window_eeg(signal, window_size=32, overlap=4):
         start = i * step
         end = start + window_size
         windowed_data[i] = signal[start:end].reshape(window_size,1)
+    
     return windowed_data
 
 # ## Create spectrogram image

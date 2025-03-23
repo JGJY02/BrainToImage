@@ -33,19 +33,21 @@ os.chdir(main_dir) #Jared Edition
 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--root_dir', type=str, help="Directory to the dataset", default = "processed_dataset/filter_mne_car",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training", default = "000thresh_AllStackLstm_All.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_All.pkl / CNN 000thresh_AllSlidingCNN_All.pkl", default = "000thresh_AllStackLstm_All.pkl" , required=False)
 
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
 
 parser.add_argument('--classifier_path', type=str, help="directory to the classifier", default= "trained_models/classifiers", required=False)
 parser.add_argument('--classifier_model', type=str, help="Name of the model", default= "eeg_classifier_adm5", required=False)
-parser.add_argument('--GAN_type', type=str, help="DC or AC or Caps", default = "DC",required=False)
-parser.add_argument('--model_type', type=str, help="M,B,C", default= "C", required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or Caps", default = "AC",required=False)
+parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/GANs",required=False)
-parser.add_argument('--GAN_Name', type=str, help="Directory to output", default = "trial1",required=False)
 
-
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM", default = "LSTM")
 parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder", default = "LSTM_all_stacked_signals")
+
+parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder", default = "LSTM_encoder")
+
 
 parser.add_argument('--batch_size', type=int, help="Batch size", default = 32,required=False)
 parser.add_argument('--epochs', type=int, help="Number of epochs to run", default = 5000,required=False)
@@ -78,7 +80,7 @@ run_id = args.dataset_pickle[:indexes[0]] #"90thresh_"# "example_data_" #Extract
 classifier_id = f"{run_id}_{args.epochs}_{args.classifierName}_{model_type}"
 
 #Output save path name
-model_save_path = f"{args.output_dir}/{args.GAN_type}/{run_id}_{model_type}"
+model_save_path = f"{args.output_dir}/{args.classifierType}_GAN/{args.GAN_type}/{run_id}_{model_type}"
 model_save_path_imgs = f"{model_save_path}/imgs"
 
 # Adversarial ground truths
@@ -86,7 +88,7 @@ valid = np.ones((batch_size, 1))
 fake = np.zeros((batch_size, 1))
 
 ## load the MNIST trainig data
-eeg_data_dir = f"{args.root_dir}/{args.input_dir}"
+eeg_data_dir = f"{args.root_dir}/{args.datasetType}/{args.input_dir}"
 eeg_data_file = f"{eeg_data_dir}/{args.dataset_pickle}"
 print(f"** Reading data file {eeg_data_file}")
 object_data = pickle.load(open(f"{eeg_data_file}", 'rb'), encoding='bytes')
@@ -149,7 +151,12 @@ combined.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accurac
 ## #############
 # EEG Classifier
 ## #############
-classifier = LSTM_Classifier(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels))
+
+if args.classifierType == "LSTM":
+    classifier = LSTM_Classifier(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels))
+
+elif args.classifierType == "CNN":
+    classifier = convolutional_encoder_model(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels))
 #classifier_optimizer = Adam(learning_rate=0.0001, decay=1e-6)
 #classifier.compile(loss='categorical_crossentropy', optimizer=classifier_optimizer, metrics=['accuracy'])
 classifier_model_path = f"{args.classifier_path}/{args.input_dir}/{run_id}/{args.classifierName}/eeg_classifier_adm5_final.h5"

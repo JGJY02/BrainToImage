@@ -1,0 +1,11 @@
+Class 0: mean ssim: 0.00, mean rmse: 10.35, mean psnr: 5.29, mean fsim: 0.40, mean uiq: -0.00,classification acc: 97.7%
+Class 1: mean ssim: 0.01, mean rmse: 10.28, mean psnr: 5.00, mean fsim: 0.37, mean uiq: -0.00,classification acc: 99.7%
+Class 2: mean ssim: 0.01, mean rmse: 10.47, mean psnr: 5.41, mean fsim: 0.38, mean uiq: 0.01,classification acc: 99.7%
+Class 3: mean ssim: 0.01, mean rmse: 10.28, mean psnr: 5.57, mean fsim: 0.37, mean uiq: 0.01,classification acc: 99.5%
+Class 4: mean ssim: 0.01, mean rmse: 10.32, mean psnr: 5.29, mean fsim: 0.35, mean uiq: 0.01,classification acc: 100.0%
+Class 5: mean ssim: 0.00, mean rmse: 10.35, mean psnr: 5.49, mean fsim: 0.40, mean uiq: -0.00,classification acc: 99.3%
+Class 6: mean ssim: 0.01, mean rmse: 10.29, mean psnr: 5.24, mean fsim: 0.34, mean uiq: 0.01,classification acc: 99.7%
+Class 7: mean ssim: 0.01, mean rmse: 10.33, mean psnr: 5.56, mean fsim: 0.35, mean uiq: 0.01,classification acc: 100.0%
+Class 8: mean ssim: 0.00, mean rmse: 10.42, mean psnr: 5.50, mean fsim: 0.40, mean uiq: 0.01,classification acc: 99.2%
+Class 9: mean ssim: 0.01, mean rmse: 10.44, mean psnr: 5.48, mean fsim: 0.37, mean uiq: -0.00,classification acc: 99.2%
+Average Class Results: mean ssim: 0.01, mean rmse: 10.44, mean psnr: 5.48, mean fsim: 0.37, mean uiq: -0.00,mean classification acc: 99.2%
