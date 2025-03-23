@@ -34,11 +34,11 @@ parser.add_argument('--input_dir', type=str, help="input directory", default = "
 parser.add_argument('--img_root_dir', type=str, help="image input directory", default = "raw_dataset/object_dataset",required=False)
 parser.add_argument('--mne_dir', type=str, help="mne directory", default = "mne_epoch",required=False)
 
-parser.add_argument('--dataset_pickle', type=str, help="sub-0x (where x 1-50)", default = "sub-01" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="sub-0x (where x 1-50)", default = "All" , required=False)
 parser.add_argument('--car_filter_percent', type=float, help="ratio to filter baseline 0.934", default = 0.00, required=False)
 parser.add_argument('--filter_from_scratch', type = bool, help="Filter from scratch or load processed file", default = True)
 
-parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllStackLstm_20", required=False)
+parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "_64size_thresh_AllStackLstm_20", required=False)
 parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car",required=False)
 
 args = parser.parse_args()
@@ -104,7 +104,7 @@ scales = np.arange(0.4, 60, 0.233)
 WINDOW_SIZE = 10
 
 
-img_size = (28,28)
+img_size = (64,64)
 obj_images = []
 feature_data = []
 label_data = []

@@ -13,8 +13,13 @@ from keras.utils import to_categorical
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
 from models.eegclassifier import convolutional_encoder_model, LSTM_Classifier
-from models.eeggan import (build_discriminator, build_EEGgan, build_MoGCgenerator, build_MoGMgenerator, build_generator,
-                           combine_loss_metrics, sample_images_eeg, save_model)
+from models.eeggan import (build_discriminator, build_EEGgan, build_MoGCgenerator, build_MoGMgenerator, build_generator)
+
+from models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
+
+from models.model_utils import (sample_images_eeg, save_model, combine_loss_metrics)
+
+
 from utils.local_MNIST import get_balanced_mnist_subset, load_local_mnist
 from utils.general_funcs_Jared import use_or_make_dir
 import argparse
@@ -28,13 +33,13 @@ os.chdir(main_dir) #Jared Edition
 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--root_dir', type=str, help="Directory to the dataset", default = "processed_dataset/filter_mne_car",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training", default = "000thresh_AllStackLstm_sub-01.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training", default = "000thresh_AllStackLstm_All.pkl" , required=False)
 
-parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "sub-01",required=False)
-parser.add_argument('--object_dataset_pickle', type=str, help="Dataset to use for training", default = "object_img_dataset_unsorted.pkl" , required=False)
+parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
 
 parser.add_argument('--classifier_path', type=str, help="directory to the classifier", default= "trained_models/classifiers", required=False)
 parser.add_argument('--classifier_model', type=str, help="Name of the model", default= "eeg_classifier_adm5", required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or Caps", default = "DC",required=False)
 parser.add_argument('--model_type', type=str, help="M,B,C", default= "C", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/GANs",required=False)
 parser.add_argument('--GAN_Name', type=str, help="Directory to output", default = "trial1",required=False)
@@ -59,11 +64,13 @@ eeg_encoding_dim = 128
 
 
 
+if args.GAN_type == "AC":
+    if generator_type == "B":
+        model_type = "Basic"
+    else:
+        model_type = f"MoG{generator_type}"
 
-if generator_type == "B":
-    model_type = "Basic"
-else:
-    model_type = f"MoG{generator_type}"
+else: model_type = args.GAN_type
 
 
 indexes = [i for i, char in enumerate(args.dataset_pickle) if char == '_']
@@ -71,7 +78,7 @@ run_id = args.dataset_pickle[:indexes[0]] #"90thresh_"# "example_data_" #Extract
 classifier_id = f"{run_id}_{args.epochs}_{args.classifierName}_{model_type}"
 
 #Output save path name
-model_save_path = f"{args.output_dir}/{run_id}_{model_type}"
+model_save_path = f"{args.output_dir}/{args.GAN_type}/{run_id}_{model_type}"
 model_save_path_imgs = f"{model_save_path}/imgs"
 
 # Adversarial ground truths
@@ -104,19 +111,30 @@ gen_losses = ['categorical_crossentropy']
 # build discriminator sub model
 print("Shape of training is")
 print((x_train.shape[1],x_train.shape[2],x_train.shape[3]))
-discriminator = build_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),len(class_labels))
-discriminator.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accuracy'])
-# build generator sub model
 
-if generator_type == "C":
-    generator = build_MoGCgenerator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
-elif generator_type == "M":
-    generator = build_MoGMgenerator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
-elif generator_type == "B":
-    generator = build_generator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
+print(f"** Training model for type: {args.GAN_type}")
+if args.GAN_type == "AC":
+    print(f"*** Training sub model for type: {args.model_type}")
+
+    discriminator = build_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),len(class_labels))
+    discriminator.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accuracy'])
+    # build generator sub model
+
+    if generator_type == "C":
+        generator = build_MoGCgenerator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
+    elif generator_type == "M":
+        generator = build_MoGMgenerator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
+    elif generator_type == "B":
+        generator = build_generator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
 
 
-generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
+    generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
+elif args.GAN_type == "DC":
+    discriminator = build_dc_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),len(class_labels))
+    discriminator.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accuracy'])
+    generator = build_dc_generator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
+    generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
+
 # prime generator.
 noise = Input(shape=(eeg_encoding_dim,))
 label = Input(shape=(1,))
@@ -144,7 +162,6 @@ encoder_model = Model(inputs=classifier.input, outputs=encoder_outputs)
 history = {'Discriminator':[],'Generator':[]}
 
 print(f"** Classifier used: {classifier_model_path}")
-print(f"** Training model for type: {model_type}")
 for epoch in range(epochs+1):
 
     # ---------------------
