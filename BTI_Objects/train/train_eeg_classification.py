@@ -11,9 +11,12 @@ from keras.regularizers import l2
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
 from models.eegclassifier import convolutional_encoder_model, convolutional_encoder_model_expanded, convolutional_encoder_model_spectrogram, convolutional_encoder_model_spectrogram_stacked, LSTM_Classifier
+from models.transformer_classifier import EEGViT_raw
 
 import argparse
 import numpy as np
+# Import transformer
+from transformers  import ViTImageProcessor
 
 """
 Title: Training script for EEG Classification
@@ -37,11 +40,11 @@ Examples:
 """
 #Argument parser 
 parser = argparse.ArgumentParser(description="Process some variables.")
-parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder", default = "processed_dataset/filter_mne_car/CNN_encoder",required=False)
+parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/Transformer",required=False)
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl", default = "000thresh_AllSlidingCNN_All.pkl" , required=False)
-parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "windowed" , required=False)
-parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals", required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllStackTransformer_All.pkl" , required=False)
+parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "transformer" , required=False)
+parser.add_argument('--model_name', type=str, help="Name of the model", default= "Transformer_all_stacked_signals", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/classifiers",required=False)
 args = parser.parse_args()
 
@@ -103,6 +106,17 @@ elif args.imageOrwindowed == "LSTM":
 
 elif args.imageOrwindowed == "windowed":
     classifier = convolutional_encoder_model(x_train.shape[1], x_train.shape[2], 10) # _expanded
+    batch_size, num_epochs = 128, 150 #128, 150
+
+elif args.imageOrwindowed == "transformer":
+    print(x_train.shape)
+    #Process the signals for EEGVit
+    # vit_processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
+    
+    # x_train = vit_processor(x_train, return_tensors="tf")
+    # x_test = vit_processor(x_test, return_tensors="tf")
+
+    classifer = EEGViT_raw(x_train.shape[1], x_train.shape[2], 10)
     batch_size, num_epochs = 128, 150 #128, 150
 
 if not os.path.exists(model_save_dir):
