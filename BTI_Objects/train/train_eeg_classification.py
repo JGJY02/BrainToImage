@@ -110,13 +110,7 @@ elif args.imageOrwindowed == "windowed":
 
 elif args.imageOrwindowed == "transformer":
     print(x_train.shape)
-    #Process the signals for EEGVit
-    # vit_processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
-    
-    # x_train = vit_processor(x_train, return_tensors="tf")
-    # x_test = vit_processor(x_test, return_tensors="tf")
-
-    classifer = EEGViT_raw(x_train.shape[1], x_train.shape[2], 10)
+    classifier = EEGViT_raw(x_train.shape[1], x_train.shape[2], 10)
     batch_size, num_epochs = 128, 150 #128, 150
 
 if not os.path.exists(model_save_dir):
@@ -136,7 +130,7 @@ sgd = optimizers.SGD(learning_rate=0.0001, decay=1e-6, momentum=0.9, nesterov=Tr
 adm = optimizers.Adam(learning_rate=1e-2, beta_1=0.9, decay=1e-6)
 
 classifier.compile(loss='categorical_crossentropy', optimizer=adm, metrics=['accuracy'])
-classifier.summary()
+# classifier.summary()
 history = classifier.fit(x_train, y_train, epochs=num_epochs, batch_size=batch_size, validation_split=0.25, callbacks=[callback_checkpoint], verbose=True)
 save_model(history.history, f"history_{str(model_name)}_final.pkl",model_save_dir)
 #classifier.load_weights(saved_model_file)
