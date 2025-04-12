@@ -23,11 +23,14 @@ root_dir = 'datasets/processed_dataset'
 
 category = "All" #"sub-01"
 eeg_dataset_dir = f"{root_dir}/filter_mne_car/{category}"
-eeg_dataset_pickle = f"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl"#"data_train_MindBigData2022_MNIST_EP.pkl"
+eeg_dataset_pickle = f"000thresh_AllStackTransformer_All.pkl" #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
 result_dir = 'results'
 
 classifier_dir = f"trained_models/classifiers/{category}" # "trained_models/classifiers/sub-01"
-classifier_name = "LSTM_all_stacked_signals_256"
+classifier_name = "Transformer_all_stacked_signals"
+
+#----------------------------------------------------------------------------
+TfOrTorch = "Torch" #Choose between TF or Torch
 
 #----------------------------------------------------------------------------
 # TensorFlow options.

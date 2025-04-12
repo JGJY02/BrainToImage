@@ -94,10 +94,10 @@ def train(model, optimizer, scheduler = None):
             # Move the inputs and targets to the GPU (if available)
             inputs = inputs.to(device)
             targets = targets.to(device)
-
+            print(inputs.shape)
             # Compute the outputs and loss for the current batch
             optimizer.zero_grad()
-            outputs = model(inputs)
+            outputs, _ = model(inputs)
             loss = criterion(outputs.squeeze(), targets.squeeze())
             
             # Compute the gradients and update the parameters
@@ -128,7 +128,7 @@ def train(model, optimizer, scheduler = None):
                 targets = targets.to(device)
 
                 # Compute the outputs and loss for the current batch
-                outputs = model(inputs)
+                outputs, _ = model(inputs)
                 # print(outputs)
                 loss = criterion(outputs.squeeze(), targets.squeeze())
                 val_loss += loss.item()
@@ -154,7 +154,7 @@ def train(model, optimizer, scheduler = None):
                 targets = targets.to(device)
 
                 # Compute the outputs and loss for the current batch
-                outputs = model(inputs)
+                outputs, _ = model(inputs)
 
                 loss = criterion(outputs.squeeze(), targets.squeeze())
                 test_loss += loss.item()
@@ -172,7 +172,7 @@ def train(model, optimizer, scheduler = None):
             print(f"Epoch {epoch}, test Loss: {test_loss}, Test acc: {epoch_test_acc:.2f}")
 
 
-        torch.save(model.state_dict(), f'{save_path}/model_{epoch+1}')
+        torch.save(model.state_dict(), f'{save_path}/eeg_classifier_adm5_{epoch+1}.pth')
 
 
 
@@ -181,7 +181,7 @@ def train(model, optimizer, scheduler = None):
 
     results_dict = {"train_loss": train_losses, "val_loss": val_losses, "test_loss": test_losses, "train_acc": train_accuracies, "val_acc": val_accuracies, "test_acc": test_accuracies}
     np.save(f'{save_path}/results.npy', results_dict)
-    torch.save(model.state_dict(), f'{save_path}/model_final')
+    torch.save(model.state_dict(), f'{save_path}/eeg_classifier_adm5_final.pth')
 
 
 if __name__ == "__main__":

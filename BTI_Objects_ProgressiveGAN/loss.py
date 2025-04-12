@@ -12,6 +12,8 @@ import tfutil
 from keras.layers import (BatchNormalization, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, LeakyReLU, Reshape,
                           UpSampling2D, ZeroPadding2D, multiply, concatenate)
+import config
+import torch
 
 ##
 def is_tf_expression(x):
@@ -21,7 +23,30 @@ def processSignals(eeg_signal, E):
     # eeg_samples = tf.compat.v1.gather(eeg_signal, tf.compat.v1.random_uniform([minibatch_size], 0, eeg_signal.shape[0], dtype=tf.compat.v1.int32))
     
     # latents = E.get_concrete_function(eeg_samples)
-    latents, labels = E(eeg_signal)
+    if config.TfOrTorch == "TF":
+        latents, labels = E(eeg_signal)
+
+    elif config.TfOrTorch == "Torch":
+        if torch.cuda.is_available():
+            gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
+            torch.cuda.set_device(gpu_id)
+            device = torch.device(f"cuda:{gpu_id}")
+        else:
+            device = torch.device("cpu")
+
+        # with tf.compat.v1.Session() as sess:
+        #     eeg_signal = sess.run(eeg_signal)
+        
+        # eeg_signal = eeg_signal.numpy()
+        eeg_signal = np.transpose(eeg_signal, (0,2,1))[:,np.newaxis,:,:]
+        # print(eeg_signal.shape)
+        tensor_eeg  = torch.from_numpy(eeg_signal).to(device)
+        encoded_labels, encoded_eeg  = E(tensor_eeg)
+
+        encoded_eeg = encoded_eeg.detach().numpy()
+        predicted_labels = encoded_labels.detach().numpy()
+        latents = tf.convert_to_tensor(encoded_eeg)
+        labels = tf.convert_to_tensor(predicted_labels)
 
     return latents, labels
 

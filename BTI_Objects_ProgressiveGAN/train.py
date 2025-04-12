@@ -22,13 +22,39 @@ from models.eegclassifier import convolutional_encoder_model, LSTM_Classifier
 from keras.layers import (BatchNormalization, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, LeakyReLU, Reshape,
                           UpSampling2D, ZeroPadding2D, multiply, concatenate)
+
+
+from models.EEGViT_pretrained import (EEGViT_pretrained)
+import torch
 #----------------------------------------------------------------------------
 # Choose the size and contents of the image snapshot grids that are exported
 # periodically during training.
 tf.compat.v1.disable_v2_behavior()
 
 def obtainEEG_latents(encoder_model, eeg_data): ##Jareds Addition
-    encoded_eeg, label = encoder_model.predict(eeg_data)
+    # encoded_eeg, label = encoder_model.predict(eeg_data)
+
+        # latents = E.get_concrete_function(eeg_samples)
+    if config.TfOrTorch == "TF":
+        encoded_eeg, label = encoder_model.predict(eeg_data)
+
+    elif config.TfOrTorch == "Torch":
+        if torch.cuda.is_available():
+            gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
+            torch.cuda.set_device(gpu_id)
+            device = torch.device(f"cuda:{gpu_id}")
+        else:
+            device = torch.device("cpu")
+            
+        eeg_data = np.transpose(eeg_data, (0,2,1))[:,np.newaxis,:,:]
+
+        tensor_eeg  = torch.from_numpy(eeg_data).to(device)
+        encoded_labels, encoded_eeg  = encoder_model(tensor_eeg)
+
+        encoded_eeg = encoded_eeg.detach().numpy()
+        label = encoded_labels.detach().numpy()
+        # encoded_eeg = tf.convert_to_tensor(encoded_eeg)
+        # label = tf.convert_to_tensor(label)
     
     return encoded_eeg, label
 
@@ -52,7 +78,7 @@ def setup_snapshot_image_grid(G, training_set,
     # Fill in reals and labels.
     reals = np.zeros([gw * gh] + training_set.shape, dtype=training_set.dtype)
     labels = np.zeros([gw * gh, training_set.label_size], dtype=training_set.label_dtype)
-    encoded_eegs = np.zeros([gw * gh, 256], dtype=training_set.eeg_signals_dtype) #128 for latent size
+    encoded_eegs = np.zeros([gw * gh, 128], dtype=training_set.eeg_signals_dtype) #128 for latent size
 
     #Jared additions to obtain latents
     # batch_norm = tf.keras.layers.BatchNormalization()
@@ -221,14 +247,29 @@ def train_progressive_gan(
     ## #############
     # EEG Classifier
     ## #############
-    classifier = LSTM_Classifier(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels), 256)
-    #classifier_optimizer = Adam(learning_rate=0.0001, decay=1e-6)
-    #classifier.compile(loss='categorical_crossentropy', optimizer=classifier_optimizer, metrics=['accuracy'])
-    classifier_model_path = f"{config.classifier_dir}/{runid}/{config.classifier_name}/eeg_classifier_adm5_final.h5"
-    classifier.load_weights(classifier_model_path)
-    layer_names = ['EEG_feature_BN2','EEG_Class_Labels']
-    encoder_outputs = [classifier.get_layer(layer_name).output for layer_name in layer_names]
-    encoder_model = Model(inputs=classifier.input, outputs=encoder_outputs)
+
+    if config.TfOrTorch == "TF":
+        classifier_model_path = f"{config.classifier_dir}/{runid}/{config.classifier_name}/eeg_classifier_adm5_final.h5"
+        classifier = LSTM_Classifier(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels), 128)
+        classifier.load_weights(classifier_model_path)
+        layer_names = ['EEG_feature_BN2','EEG_Class_Labels']
+        encoder_outputs = [classifier.get_layer(layer_name).output for layer_name in layer_names]
+        encoder_model = Model(inputs=classifier.input, outputs=encoder_outputs)
+    
+    elif config.TfOrTorch == "Torch":
+        classifier_model_path = f"{config.classifier_dir}/{runid}/{config.classifier_name}/eeg_classifier_adm5_final.pth"
+
+        if torch.cuda.is_available():
+            gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
+            torch.cuda.set_device(gpu_id)
+            device = torch.device(f"cuda:{gpu_id}")
+        else:
+            device = torch.device("cpu")
+        encoder_model = EEGViT_pretrained()
+        encoder_model.load_state_dict(torch.load(classifier_model_path, map_location=device))
+        encoder_model.eval() 
+    else:
+        raise FileNotFoundError(f"{config.TfOrTorch} is not a valid implementation")
     ## ENd of Jared ADdition
 
     ## Define embedding layer to be used later
@@ -243,7 +284,12 @@ def train_progressive_gan(
         lrate_in        = tf.compat.v1.placeholder(tf.compat.v1.float32, name='lrate_in', shape=[])
         minibatch_in    = tf.compat.v1.placeholder(tf.compat.v1.int32, name='minibatch_in', shape=[])
         minibatch_split = minibatch_in // config.num_gpus
-        reals, labels, eeg_signals   = training_set.get_minibatch_tf() ## add eeg signal to here
+        if config.TfOrTorch == "TF":
+            reals, labels, eeg_signals   = training_set.get_minibatch_tf() ## add eeg signal to here
+            print(eeg_signals.shape)
+        elif config.TfOrTorch == "Torch":
+            reals, labels, eeg_signals   = training_set.get_minibatch_np(1024) ## add eeg signal to here
+
         reals_split     = tf.compat.v1.split(reals, config.num_gpus)
         labels_split    = tf.compat.v1.split(labels, config.num_gpus)
     G_opt = tfutil.Optimizer(name='TrainG', learning_rate=lrate_in, **config.G_opt)
