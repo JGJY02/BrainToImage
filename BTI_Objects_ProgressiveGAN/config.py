@@ -26,9 +26,6 @@ eeg_dataset_dir = f"{root_dir}/filter_mne_car/{category}"
 eeg_dataset_pickle = f"000thresh_AllStackTransformer_All.pkl" #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
 result_dir = 'results'
 
-classifier_dir = f"trained_models/classifiers/{category}" # "trained_models/classifiers/sub-01"
-classifier_name = "Transformer_all_stacked_signals"
-
 #----------------------------------------------------------------------------
 TfOrTorch = "Torch" #Choose between TF or Torch
 
@@ -67,7 +64,11 @@ grid        = EasyDict(size='1080p', layout='random')       # Options for train.
 #desc += '-cifar100';            dataset = EasyDict(tfrecord_dir='cifar100')
 #desc += '-svhn';                dataset = EasyDict(tfrecord_dir='svhn')
 # desc += '-mnist';               dataset = EasyDict(tfrecord_dir='mnist')
-desc += '-objects';               dataset = EasyDict(tfrecord_dir='objects')
+
+# desc += '-objects';               dataset = EasyDict(tfrecord_dir='objects')
+desc += '-objects_transformer';               dataset = EasyDict(tfrecord_dir='objects_transformer')
+# desc += '-objects_LSTM';               dataset = EasyDict(tfrecord_dir='objects_LSTM')
+
 #desc += '-mnistrgb';            dataset = EasyDict(tfrecord_dir='mnistrgb')
 #desc += '-syn1024rgb';          dataset = EasyDict(class_name='dataset.SyntheticDataset', resolution=1024, num_channels=3)
 #desc += '-lsun-airplane';       dataset = EasyDict(tfrecord_dir='lsun-airplane-100k');       train.mirror_augment = True

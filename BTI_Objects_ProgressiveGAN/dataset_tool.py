@@ -18,6 +18,13 @@ import PIL.Image
 
 import tfutil
 import dataset
+import config
+from keras.models import Model
+from models.eegclassifier import convolutional_encoder_model, LSTM_Classifier
+from models.EEGViT_pretrained import (EEGViT_pretrained)
+import torch
+from torch.utils.data import DataLoader, TensorDataset
+from tqdm import tqdm
 
 #----------------------------------------------------------------------------
 
@@ -90,17 +97,26 @@ class TFRecordExporter:
         assert labels.shape[0] == self.cur_images
         with open(self.tfr_prefix + '-rxx.labels', 'wb') as f:
             np.save(f, labels.astype(np.float32))
-    
-    ## New function Jared
-    def add_signals(self, signal):
-        with open(self.tfr_prefix + '-rxx.signal', 'wb') as f:
-            np.save(f, signal.astype(np.float32))
-            
     def __enter__(self):
         return self
     
     def __exit__(self, *args):
         self.close()
+
+
+    ## New function Jared
+    def add_signals(self, signal): #Addition of encoded signals
+        with open(self.tfr_prefix + '-rxx.signal', 'wb') as f:
+            np.save(f, signal.astype(np.float32))
+
+    def add_encodedLabels(self, labels): #addition of encoded labels
+        if self.print_progress:
+            print('%-40s\r' % 'Saving Encoded labels...', end='', flush=True)
+        assert labels.shape[0] == self.cur_images
+        with open(self.tfr_prefix + '-rxx.encodedLabels', 'wb') as f:
+            np.save(f, labels.astype(np.float32))
+            
+
 
 #----------------------------------------------------------------------------
 
@@ -348,7 +364,7 @@ def create_mnistrgb(tfrecord_dir, mnist_dir, num_images=1000000, random_seed=123
 
 #----------------------------------------------------------------------------
 ##NEW BY JARED
-def create_Objects(tfrecord_dir, object_dir, fileName):
+def create_Objects(tfrecord_dir, object_dir, fileName, classifierModelPath):
     print('Loading Objects from "%s"' % object_dir)
     import pickle
 
@@ -360,6 +376,7 @@ def create_Objects(tfrecord_dir, object_dir, fileName):
     signals = data['x_train_eeg']
     images = np.transpose(data['x_train_img'], (0, 3, 1, 2))
     labels = data['y_train']
+    class_labels = [0,1,2,3,4,5,6,7,8,9]
 
     # signal_train = data['x_train_eeg']
     # signal_test = data['x_test_eeg']
@@ -374,9 +391,80 @@ def create_Objects(tfrecord_dir, object_dir, fileName):
     # images = np.concatenate(images, axis = 0)
     # labels = np.concatenate(labels)
     # signals = np.concatenate(signals, axis = 0)
+    
+    ## #############
+    # EEG Classifier
+    ## #############
 
+    if config.TfOrTorch == "TF":
+        classifier = LSTM_Classifier(signals.shape[1], signals.shape[2], len(class_labels), 128)
+        classifier.load_weights(classifierModelPath)
+        layer_names = ['EEG_feature_BN2','EEG_Class_Labels']
+        encoder_outputs = [classifier.get_layer(layer_name).output for layer_name in layer_names]
+        encoder_model = Model(inputs=classifier.input, outputs=encoder_outputs)
+
+        dataset = tf.data.Dataset.from_tensor_slices(signals)
+        batch_size = 64
+        dataset = dataset.batch(batch_size)
+
+        encoded_latents = []
+        encoded_labels = []
+
+        for batch in tqdm(dataset):
+            encodedEEG, encodedLabel = encoder_model(batch, training=False)
+            encoded_latents.append(encodedEEG)
+            encoded_labels.append(encodedLabel)
+
+        # Combine results
+        encoded_latents = np.concatenate(encoded_latents, axis=0)
+        encoded_labels = np.concatenate(encoded_labels, axis=0)
+
+    
+    elif config.TfOrTorch == "Torch":
+        if torch.cuda.is_available():
+            gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
+            torch.cuda.set_device(gpu_id)
+            device = torch.device(f"cuda:{gpu_id}")
+        else:
+            device = torch.device("cpu")
+
+        encoder_model = EEGViT_pretrained()
+        encoder_model.load_state_dict(torch.load(classifierModelPath, map_location=device))
+        encoder_model.eval() 
+
+        # signals = np.transpose(signals, (0,2,1))[:,np.newaxis,:,:]
+        signals = signals[:,np.newaxis,:,:]
+        print(signals.shape)
+        tensor_eeg  = torch.from_numpy(signals).to(device)
+        batch_size = 64  # You can tune this depending on your hardware
+        dataset = TensorDataset(tensor_eeg)
+        loader = DataLoader(dataset, batch_size=batch_size)
+
+        encoded_latents = []
+        encoded_labels = []
+        with torch.no_grad():
+            for batch in tqdm(loader):
+                inputs = batch[0].to(device)  # move to GPU if needed
+                encodedLabel, encodedEEG = encoder_model(inputs)
+                encoded_latents.append(encodedEEG.cpu())  # move to CPU if you want to save memory
+                encoded_labels.append(encodedLabel.cpu())  # move to CPU if you want to save memory
+
+        encoded_latents = torch.cat(encoded_latents, dim=0)
+        encoded_labels = torch.cat(encoded_labels, dim=0)
+
+
+        encoded_latents = encoded_latents.numpy()
+        encoded_labels = encoded_labels.numpy()
+    
+    else:
+        raise FileNotFoundError(f"{config.TfOrTorch} is not a valid implementation")
+
+    encoded_labels = np.argmax(encoded_labels, axis = 1)
+    encoded_labels = encoded_labels.astype(np.int32)
+    
     labels = np.argmax(labels, axis = 1)
     labels = labels.astype(np.int32)
+    
 
     images = images.reshape(-1, 3, 28, 28)
     images = np.array(images)
@@ -387,10 +475,18 @@ def create_Objects(tfrecord_dir, object_dir, fileName):
 
     assert images.shape == (number_of_imgs, 3, 32, 32) and images.dtype == np.uint8
     assert labels.shape == (number_of_imgs,) and labels.dtype == np.int32
+    assert encoded_labels.shape == (number_of_imgs,) and labels.dtype == np.int32
+
     assert np.min(images) == 0 and np.max(images) == 255
     assert np.min(labels) == 0 and np.max(labels) == 9
+    assert np.min(encoded_labels) == 0 and np.max(labels) == 9
+
+    
     onehot = np.zeros((labels.size, np.max(labels) + 1), dtype=np.float32)
     onehot[np.arange(labels.size), labels] = 1.0
+
+    onehot_encoded = np.zeros((encoded_labels.size, np.max(encoded_labels) + 1), dtype=np.float32)
+    onehot_encoded[np.arange(encoded_labels.size), encoded_labels] = 1.0
 
     with TFRecordExporter(tfrecord_dir, images.shape[0]) as tfr:
         order = tfr.choose_shuffled_order()
@@ -398,8 +494,9 @@ def create_Objects(tfrecord_dir, object_dir, fileName):
             tfr.add_image(images[order[idx]])
 
         tfr.add_labels(onehot[order])
-        tfr.add_signals(signals[order])
 
+        tfr.add_signals(encoded_latents[order])
+        tfr.add_encodedLabels(onehot_encoded[order])
 
 
 #----------------------------------------------------------------------------
@@ -761,11 +858,12 @@ def execute_cmdline(argv):
     p.add_argument(     '--random_seed',    help='Random seed (default: 123)', type=int, default=123)
 
 ## New dataset tp create start
-    p = add_command(    'create_Objects',   'Create dataset for CIFAR-10.',
+    p = add_command(    'create_Objects',   'Create dataset for Objects.',
                                             'create_Objects datasets/processed_datasets/tfRecord/Objects datasets/processed_dataset/filter_mne_car/sub-01 000thresh_AllStackLstm_sub-01.pkl')
     p.add_argument(     'tfrecord_dir',     help='New dataset directory to be created')
-    p.add_argument(     'object_dir',      help='Directory containing CIFAR-10')
-    p.add_argument(     'fileName',     help='file to use')
+    p.add_argument(     'object_dir',      help='Directory containing Objects')
+    p.add_argument(     'fileName',         help='file to use')
+    p.add_argument(      'classifierModelPath',   help="Directory to classifier to use")
 ## New dataset to create end
 
     p = add_command(    'create_cifar10',   'Create dataset for CIFAR-10.',

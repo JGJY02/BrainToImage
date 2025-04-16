@@ -17,46 +17,17 @@ import tfutil
 import dataset
 import misc
 
-from models.eegclassifier import convolutional_encoder_model, LSTM_Classifier
 
 from keras.layers import (BatchNormalization, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, LeakyReLU, Reshape,
                           UpSampling2D, ZeroPadding2D, multiply, concatenate)
 
 
-from models.EEGViT_pretrained import (EEGViT_pretrained)
-import torch
 #----------------------------------------------------------------------------
 # Choose the size and contents of the image snapshot grids that are exported
 # periodically during training.
 tf.compat.v1.disable_v2_behavior()
 
-def obtainEEG_latents(encoder_model, eeg_data): ##Jareds Addition
-    # encoded_eeg, label = encoder_model.predict(eeg_data)
-
-        # latents = E.get_concrete_function(eeg_samples)
-    if config.TfOrTorch == "TF":
-        encoded_eeg, label = encoder_model.predict(eeg_data)
-
-    elif config.TfOrTorch == "Torch":
-        if torch.cuda.is_available():
-            gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
-            torch.cuda.set_device(gpu_id)
-            device = torch.device(f"cuda:{gpu_id}")
-        else:
-            device = torch.device("cpu")
-            
-        eeg_data = np.transpose(eeg_data, (0,2,1))[:,np.newaxis,:,:]
-
-        tensor_eeg  = torch.from_numpy(eeg_data).to(device)
-        encoded_labels, encoded_eeg  = encoder_model(tensor_eeg)
-
-        encoded_eeg = encoded_eeg.detach().numpy()
-        label = encoded_labels.detach().numpy()
-        # encoded_eeg = tf.convert_to_tensor(encoded_eeg)
-        # label = tf.convert_to_tensor(label)
-    
-    return encoded_eeg, label
 
 
 def setup_snapshot_image_grid(G, training_set, 
@@ -95,15 +66,14 @@ def setup_snapshot_image_grid(G, training_set,
     for idx in range(gw * gh):
         x = idx % gw; y = idx // gw
         while True:
-            real, _, eeg_signal = training_set.get_minibatch_np(1)
+            real, _, encoded_signal, encoded_label = training_set.get_minibatch_np(1)
             if layout == 'row_per_class' and training_set.label_size > 0:
-                if label[0, y % training_set.label_size] == 0.0:
+                if encoded_label[0, y % training_set.label_size] == 0.0:
                     continue
             reals[idx] = real[0]
-            encoded_eeg, label = obtainEEG_latents(encoder_model, eeg_signal)
-            encoded_eegs[idx] = encoded_eeg
+            encoded_eegs[idx] = encoded_signal
 
-            labels[idx] = label
+            labels[idx] = encoded_label
             break
 
     # Generate latents.
@@ -212,12 +182,12 @@ def train_progressive_gan(
 
     maintenance_start_time = time.time()
     print(config.data_dir)
-    class_labels = [0,1,2,3,4,5,6,7,8,9]
+    # class_labels = [0,1,2,3,4,5,6,7,8,9]
 
     training_set = dataset.load_dataset(data_dir=config.data_dir, verbose=True, **config.dataset)
 
     #Create and import eeg latent vectors
-    eeg_data = pickle.load(open(f"{config.eeg_dataset_dir}/{config.eeg_dataset_pickle}", 'rb'), encoding='bytes')
+    # eeg_data = pickle.load(open(f"{config.eeg_dataset_dir}/{config.eeg_dataset_pickle}", 'rb'), encoding='bytes')
 
     # eeg_data_tensor = tf.convert_to_tensor(eeg_data['x_test_eeg'])  # Convert to TensorFlow tensor if it's not already
     # eeg_data_tensor_dataset = tf.data.Dataset.from_tensor_slices(eeg_data_tensor)
@@ -241,35 +211,7 @@ def train_progressive_gan(
     G.print_layers(); D.print_layers()
 
     
-    indexes = [i for i, char in enumerate(config.eeg_dataset_pickle) if char == '_']
-    runid = config.eeg_dataset_pickle[:indexes[0]] #"90thresh_"# "example_data_" #Extract the prefix to be used as the run id
-    
-    ## #############
-    # EEG Classifier
-    ## #############
-
-    if config.TfOrTorch == "TF":
-        classifier_model_path = f"{config.classifier_dir}/{runid}/{config.classifier_name}/eeg_classifier_adm5_final.h5"
-        classifier = LSTM_Classifier(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], len(class_labels), 128)
-        classifier.load_weights(classifier_model_path)
-        layer_names = ['EEG_feature_BN2','EEG_Class_Labels']
-        encoder_outputs = [classifier.get_layer(layer_name).output for layer_name in layer_names]
-        encoder_model = Model(inputs=classifier.input, outputs=encoder_outputs)
-    
-    elif config.TfOrTorch == "Torch":
-        classifier_model_path = f"{config.classifier_dir}/{runid}/{config.classifier_name}/eeg_classifier_adm5_final.pth"
-
-        if torch.cuda.is_available():
-            gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
-            torch.cuda.set_device(gpu_id)
-            device = torch.device(f"cuda:{gpu_id}")
-        else:
-            device = torch.device("cpu")
-        encoder_model = EEGViT_pretrained()
-        encoder_model.load_state_dict(torch.load(classifier_model_path, map_location=device))
-        encoder_model.eval() 
-    else:
-        raise FileNotFoundError(f"{config.TfOrTorch} is not a valid implementation")
+    encoder_model = 0
     ## ENd of Jared ADdition
 
     ## Define embedding layer to be used later
@@ -284,11 +226,8 @@ def train_progressive_gan(
         lrate_in        = tf.compat.v1.placeholder(tf.compat.v1.float32, name='lrate_in', shape=[])
         minibatch_in    = tf.compat.v1.placeholder(tf.compat.v1.int32, name='minibatch_in', shape=[])
         minibatch_split = minibatch_in // config.num_gpus
-        if config.TfOrTorch == "TF":
-            reals, labels, eeg_signals   = training_set.get_minibatch_tf() ## add eeg signal to here
-            print(eeg_signals.shape)
-        elif config.TfOrTorch == "Torch":
-            reals, labels, eeg_signals   = training_set.get_minibatch_np(1024) ## add eeg signal to here
+        reals, labels, encoded_signals, encoded_labels   = training_set.get_minibatch_tf() ## add eeg signal to here
+
 
         reals_split     = tf.compat.v1.split(reals, config.num_gpus)
         labels_split    = tf.compat.v1.split(labels, config.num_gpus)
@@ -307,10 +246,12 @@ def train_progressive_gan(
             ## End of EEG Sampling Addition
             with tf.compat.v1.name_scope('G_loss'), tf.compat.v1.control_dependencies(lod_assign_ops):
                 #G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, **config.G_loss)
-                G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, E=encoder_model, embed = embedding_layer,opt=G_opt, training_set=training_set, eeg_signals= eeg_signals, minibatch_size=minibatch_split,labels = labels_gpu, **config.G_loss)
+                G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, encoded_signals = encoded_signals, encoded_labels = encoded_labels, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, **config.G_loss)
+                # G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, E=encoder_model, embed = embedding_layer,opt=G_opt, training_set=training_set, eeg_signals= eeg_signals, minibatch_size=minibatch_split,labels = labels_gpu, **config.G_loss)
             with tf.compat.v1.name_scope('D_loss'), tf.compat.v1.control_dependencies(lod_assign_ops):
-                #D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, training_set=training_set, minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, **config.D_loss)
-                D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, E=encoder_model, embed = embedding_layer, opt=D_opt, training_set=training_set, eeg_signals = eeg_signals ,minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, **config.D_loss)
+                # D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, training_set=training_set, minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, **config.D_loss)
+                 D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, encoded_signals = encoded_signals, encoded_labels= encoded_labels, training_set=training_set, minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, **config.D_loss)
+                # D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, E=encoder_model, embed = embedding_layer, opt=D_opt, training_set=training_set, eeg_signals = eeg_signals ,minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, **config.D_loss)
             G_opt.register_gradients(tf.compat.v1.reduce_mean(G_loss), G_gpu.trainables)
             D_opt.register_gradients(tf.compat.v1.reduce_mean(D_loss), D_gpu.trainables)
     G_train_op = G_opt.apply_updates()

@@ -11,6 +11,9 @@ import numpy as np
 import tensorflow as tf
 import tfutil
 
+##
+
+
 #----------------------------------------------------------------------------
 # Parse individual image from a tfrecords file.
 
@@ -43,6 +46,7 @@ class TFRecordDataset:
         buffer_mb       = 256,      # Read buffer size (megabytes).
         num_threads     = 2,         # Number of concurrent threads.
         signals_file    = None,
+        encoded_label_file = None
         ):       
 
         self.tfrecord_dir       = tfrecord_dir
@@ -64,7 +68,14 @@ class TFRecordDataset:
         self._tf_minibatch_np   = None
         self._cur_minibatch     = -1
         self._cur_lod           = -1
+
         self.signals_file       = signals_file
+        self.encoded_label_file = encoded_label_file
+        self._np_encoded_labels        = None
+        self._tf_encoded_labels_var     = None
+        self._tf_encoded_labels_dataset = None
+
+        
         # List tfrecords files and inspect their shapes.
         assert os.path.isdir(self.tfrecord_dir)
         tfr_files = sorted(glob.glob(os.path.join(self.tfrecord_dir, '*.tfrecords')))
@@ -109,14 +120,39 @@ class TFRecordDataset:
         self.label_size = self._np_labels.shape[1]
         self.label_dtype = self._np_labels.dtype.name
 
+        #Beginning of Jared additions
+
+
         # Load signals (JARED)
         if self.signals_file is None:
             guess = sorted(glob.glob(os.path.join(self.tfrecord_dir, '*.signal')))
             if len(guess):
                 self.signals_file = guess[0]
+                
         self.eeg_signals = np.load(self.signals_file)
         self.eeg_signals_size = self.eeg_signals.shape[1]
         self.eeg_signals_dtype = self.eeg_signals.dtype.name
+
+        #Encoded Labels
+        if self.encoded_label_file is None:
+            guess = sorted(glob.glob(os.path.join(self.tfrecord_dir, '*.encodedLabels')))
+            if len(guess):
+                self.encoded_label_file = guess[0]
+        elif not os.path.isfile(self.encoded_label_file):
+            guess = os.path.join(self.tfrecord_dir, self.encoded_label_file)
+            if os.path.isfile(guess):
+                self.encoded_label_file = guess
+
+        # Load labels.
+        assert max_label_size == 'full' or max_label_size >= 0
+        self._np_encoded_labels = np.zeros([1<<20, 0], dtype=np.float32)
+        if self.encoded_label_file is not None and max_label_size != 0:
+            self._np_encoded_labels = np.load(self.encoded_label_file)
+            assert self._np_encoded_labels.ndim == 2
+        if max_label_size != 'full' and self._np_encoded_labels.shape[1] > max_label_size:
+            self._np_encoded_labels = self._np_encoded_labels[:, :max_label_size]
+        self.label_size = self._np_encoded_labels.shape[1]
+        self.label_dtype = self._np_encoded_labels.dtype.name
 
 
         # Build TF expressions.
@@ -134,7 +170,10 @@ class TFRecordDataset:
             tfutil.set_vars({self._tf_signals_var: self.eeg_signals})
             self._tf_signals_dataset = tf.compat.v1.data.Dataset.from_tensor_slices(self._tf_signals_var)
 
-
+            tf_encoded_labels_init = tf.compat.v1.zeros(self._np_encoded_labels.shape, self._np_encoded_labels.dtype)
+            self._tf_encoded_labels_var = tf.compat.v1.Variable(tf_encoded_labels_init, name='labels_var')
+            tfutil.set_vars({self._tf_encoded_labels_var: self._np_encoded_labels})
+            self._tf_encoded_labels_dataset = tf.compat.v1.data.Dataset.from_tensor_slices(self._tf_encoded_labels_var)
 
 
 
@@ -143,7 +182,7 @@ class TFRecordDataset:
                     continue
                 dset = tf.compat.v1.data.TFRecordDataset(tfr_file, compression_type='', buffer_size=buffer_mb<<20)
                 dset = dset.map(parse_tfrecord_tf, num_parallel_calls=num_threads)
-                dset = tf.compat.v1.data.Dataset.zip((dset, self._tf_labels_dataset, self._tf_signals_dataset))
+                dset = tf.compat.v1.data.Dataset.zip((dset, self._tf_labels_dataset, self._tf_signals_dataset, self._tf_encoded_labels_dataset))
                 bytes_per_item = np.prod(tfr_shape) * np.dtype(self.dtype).itemsize
                 if shuffle_mb > 0:
                     dset = dset.shuffle(((shuffle_mb << 20) - 1) // bytes_per_item + 1)
