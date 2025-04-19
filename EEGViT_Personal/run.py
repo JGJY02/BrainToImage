@@ -94,7 +94,7 @@ def train(model, optimizer, scheduler = None):
             # Move the inputs and targets to the GPU (if available)
             inputs = inputs.to(device)
             targets = targets.to(device)
-            print(inputs.shape)
+            # print(inputs.shape)
             # Compute the outputs and loss for the current batch
             optimizer.zero_grad()
             outputs, _ = model(inputs)

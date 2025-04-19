@@ -1,5 +1,6 @@
 #ignore specific files
 *.png
+*.pkl
 
 #Ignore BTI_Objects file paths
 BTI_Objects/brain_to_image/
@@ -8,7 +9,12 @@ BTI_Objects/raw_dataset/
 BTI_Objects/processed_dataset/
 
 #Ignore file paths
-BTI_Objects_ProgressiveGAN/brain_to_image/
-BTI_Objects_ProgressiveGAN/trained_models/
-BTI_Objects_ProgressiveGAN/datasets/
-BTI_Objects_ProgressiveGAN/results/
+BTI_Objects_ProgressiveGAN_single/brain_to_image/
+BTI_Objects_ProgressiveGAN_single/trained_models/
+BTI_Objects_ProgressiveGAN_single/datasets/
+BTI_Objects_ProgressiveGAN_single/results/
+
+BTI_Objects_ProgressiveGAN_dual/brain_to_image/
+BTI_Objects_ProgressiveGAN_dual/trained_models/
+BTI_Objects_ProgressiveGAN_dual/datasets/
+BTI_Objects_ProgressiveGAN_dual/results/
