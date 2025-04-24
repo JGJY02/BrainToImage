@@ -23,10 +23,10 @@ root_dir = 'datasets/processed_dataset'
 
 category = "All" #"sub-01"
 eeg_dataset_dir = f"{root_dir}/filter_mne_car/{category}"
-eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual.pkl" #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
+eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2.pkl" #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
 result_dir = 'results'
 
-eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_all_stacked_signals"
+eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_all_stacked_signals_2"
 evalOutputDir = f"{result_dir}/TransformerDual_ProGAN"
 #----------------------------------------------------------------------------
 TfOrTorch = "Torch" #Choose between TF or Torch

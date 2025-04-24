@@ -6,7 +6,7 @@ from torch import nn
 import transformers
 
 class EEGViT_pretrained_dual(nn.Module):
-    def __init__(self):
+    def __init__(self, num_of_classes, num_of_types):
         super().__init__()
         self.conv1 = nn.Conv2d(
             in_channels=1, 
@@ -36,9 +36,9 @@ class EEGViT_pretrained_dual(nn.Module):
                                     torch.nn.BatchNorm1d(128),
                                     torch.nn.Dropout(p=0.1))
 
-        self.classification_head = torch.nn.Linear(128,10,bias=True)
+        self.classification_head = torch.nn.Linear(128,num_of_classes,bias=True)
 
-        self.type_classification_head = torch.nn.Linear(128,12,bias=True)
+        self.type_classification_head = torch.nn.Linear(128,num_of_types,bias=True)
 
         
     def forward(self,x):

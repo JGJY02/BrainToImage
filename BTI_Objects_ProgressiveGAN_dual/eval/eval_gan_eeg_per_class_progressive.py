@@ -90,6 +90,7 @@ os.chdir(main_dir) #Jared Edition
 print(os.getcwd())
 eeg_latent_dim = 128
 class_labels = [0,1,2,3,4,5,6,7,8,9]
+type_labels = [0,1]
 valid_threshold = 0.5
 
 
@@ -141,7 +142,7 @@ for i in class_labels:
 # combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 # resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 # resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
-resume_run_id           = os.path.join("results", "074-pgan-objects_transformer_dual-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
+resume_run_id           = os.path.join("results", "075-pgan-objects_transformer_dual_2-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 resume_snapshot         = 12000 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
 
 
@@ -190,7 +191,7 @@ elif config.TfOrTorch == "Torch":
     else:
         device = torch.device("cpu")
 
-    encoder_model = EEGViT_pretrained_dual()
+    encoder_model = EEGViT_pretrained_dual(len(class_labels), len(type_labels))
     encoder_model.load_state_dict(torch.load(classifier_model_path, map_location=device))
     encoder_model.eval() 
 
@@ -524,11 +525,11 @@ mean_text_to_print = f"Average Class Results: mean ssim: {mean_evaluation['avera
 print(mean_text_to_print)
 text_to_save.append(mean_text_to_print)
 
-stacked_images = np.stack(sample_img_per_class, axis=0)
-stacked_labels = np.stack(list_of_labels, axis = 0)
+# stacked_images = np.stack(sample_img_per_class, axis=0)
+# stacked_labels = np.stack(list_of_labels, axis = 0)
 
-stacked_images = stacked_images.reshape(-1, 28, 28, 3)
-stacked_labels = stacked_labels.reshape(-1)
+# stacked_images = stacked_images.reshape(-1, 28, 28, 3)
+# stacked_labels = stacked_labels.reshape(-1)
 # save_imgs(stacked_images, "Sampling image of each class", "all" ,stacked_labels, stacked_labels, output_dir)
 
 with open(f"{output_dir}/results.txt", "w") as file:

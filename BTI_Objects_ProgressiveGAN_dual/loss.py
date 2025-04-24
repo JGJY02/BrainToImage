@@ -162,9 +162,8 @@ def D_wgangp_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, o
     # latents, labels_predicted = processSignals(eeg_signal=eeg_signals, E=E)
     
     latents = encoded_signals
-    labels_predicted = encoded_labels
 
-    fake_images_out = G.get_output_for(latents, labels_predicted, encoded_labels_type, is_training=True)
+    fake_images_out = G.get_output_for(latents, encoded_labels, encoded_labels_type, is_training=True)
     real_scores_out, real_labels_out, real_scores_type_out, real_labels_type_out = fp32(D.get_output_for(reals, is_training=True))
     fake_scores_out, fake_labels_out, fake_scores_type_out, fake_labels_type_out = fp32(D.get_output_for(fake_images_out, is_training=True))
     real_scores_out = tfutil.autosummary('Loss/real_scores', real_scores_out)
@@ -197,8 +196,8 @@ def D_wgangp_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, o
 
     if D.output_shapes[1][1] > 0:
         with tf.compat.v1.name_scope('LabelPenalty'):
-            label_penalty_reals = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=labels_predicted, logits=real_labels_out)
-            label_penalty_fakes = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=labels_predicted, logits=fake_labels_out)
+            label_penalty_reals = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=encoded_labels, logits=real_labels_out)
+            label_penalty_fakes = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=encoded_labels, logits=fake_labels_out)
 
             label_penalty_reals_type = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=encoded_labels_type, logits=real_labels_type_out)
             label_penalty_fakes_type = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=encoded_labels_type, logits=fake_labels_type_out)

@@ -315,7 +315,32 @@ def D_paper(
     def fromrgb(x, res): # res = 2..resolution_log2
         with tf.compat.v1.variable_scope('FromRGB_lod%d' % (resolution_log2 - res)):
             return act(apply_bias(conv2d(x, fmaps=nf(res-1), kernel=1, use_wscale=use_wscale)))
-    def block(x, res): # res = 2..resolution_log2
+    # def block(x, res): # res = 2..resolution_log2
+    #     with tf.compat.v1.variable_scope('%dx%d' % (2**res, 2**res)):
+    #         if res >= 3: # 8x8 and up
+    #             with tf.compat.v1.variable_scope('Conv0'):
+    #                 x = act(apply_bias(conv2d(x, fmaps=nf(res-1), kernel=3, use_wscale=use_wscale)))
+    #             if fused_scale:
+    #                 with tf.compat.v1.variable_scope('Conv1_down'):
+    #                     x = act(apply_bias(conv2d_downscale2d(x, fmaps=nf(res-2), kernel=3, use_wscale=use_wscale)))
+    #             else:
+    #                 with tf.compat.v1.variable_scope('Conv1'):
+    #                     x = act(apply_bias(conv2d(x, fmaps=nf(res-2), kernel=3, use_wscale=use_wscale)))
+    #                 x = downscale2d(x)
+    #         else: # 4x4
+    #             if mbstd_group_size > 1:
+    #                 x = minibatch_stddev_layer(x, mbstd_group_size)
+    #             with tf.compat.v1.variable_scope('Conv'):
+    #                 x = act(apply_bias(conv2d(x, fmaps=nf(res-1), kernel=3, use_wscale=use_wscale)))
+    #             with tf.compat.v1.variable_scope('Dense0'):
+    #                 x = act(apply_bias(dense(x, fmaps=nf(res-2), use_wscale=use_wscale)))
+    #             with tf.compat.v1.variable_scope('Dense1'):
+    #                 x = apply_bias(dense(x, fmaps=1+label_size+1+labels_type_size, gain=1, use_wscale=use_wscale))
+                    
+    #         return x
+
+    
+    def block_modified(x, res): # res = 2..resolution_log2
         with tf.compat.v1.variable_scope('%dx%d' % (2**res, 2**res)):
             if res >= 3: # 8x8 and up
                 with tf.compat.v1.variable_scope('Conv0'):
@@ -335,8 +360,15 @@ def D_paper(
                 with tf.compat.v1.variable_scope('Dense0'):
                     x = act(apply_bias(dense(x, fmaps=nf(res-2), use_wscale=use_wscale)))
                 with tf.compat.v1.variable_scope('Dense1'):
-                    x = apply_bias(dense(x, fmaps=1+label_size+1+labels_type_size, gain=1, use_wscale=use_wscale))
-                    
+                    x = apply_bias(dense(x, fmaps=1+label_size, gain=1, use_wscale=use_wscale))
+                
+
+                if res == 2:
+                    with tf.compat.v1.variable_scope('Dense2'):
+                        x2 = apply_bias(dense(x, fmaps=1+labels_type_size, gain=1, use_wscale=use_wscale))
+                        return x, x2
+
+
             return x
     
     # Linear structure: simple but inefficient.
@@ -345,30 +377,32 @@ def D_paper(
         x = fromrgb(img, resolution_log2)
         for res in range(resolution_log2, 2, -1):
             lod = resolution_log2 - res
-            x = block(x, res)
+            x = block_modified(x, res)
             img = downscale2d(img)
             y = fromrgb(img, res - 1)
             with tf.compat.v1.variable_scope('Grow_lod%d' % lod):
                 x = lerp_clip(x, y, lod_in - lod)
-        combo_out = block(x, 2)
+        combo_out = block_modified(x, 2)
 
     # Recursive structure: complex but efficient.
     if structure == 'recursive':
         def grow(res, lod):
             x = lambda: fromrgb(downscale2d(images_in, 2**lod), res)
             if lod > 0: x = cset(x, (lod_in < lod), lambda: grow(res + 1, lod - 1))
-            x = block(x(), res); y = lambda: x
+            x = block_modified(x(), res); y = lambda: x
             if res > 2: y = cset(y, (lod_in > lod), lambda: lerp(x, fromrgb(downscale2d(images_in, 2**(lod+1)), res - 1), lod_in - lod))
             return y()
         combo_out = grow(2, resolution_log2 - 2)
 
-    assert combo_out.dtype == tf.compat.v1.as_dtype(dtype)
-    scores_out = tf.compat.v1.identity(combo_out[:, :1], name='scores_out')
-    labels_out = tf.compat.v1.identity(combo_out[:, 1:label_size+1], name='labels_out')
+    assert combo_out[0].dtype == tf.compat.v1.as_dtype(dtype)
+    assert combo_out[1].dtype == tf.compat.v1.as_dtype(dtype)
+
+    scores_out = tf.compat.v1.identity(combo_out[0][:, :1], name='scores_out')
+    labels_out = tf.compat.v1.identity(combo_out[0][:, 1:], name='labels_out')
 
 
-    scores_out_type = tf.compat.v1.identity(combo_out[:, label_size+1:label_size+2], name='scores_out_type')
-    labels_out_type = tf.compat.v1.identity(combo_out[:, label_size+2:], name='labels_out_type')
+    scores_out_type = tf.compat.v1.identity(combo_out[1][:, :1], name='scores_out_type')
+    labels_out_type = tf.compat.v1.identity(combo_out[1][:, 1:], name='labels_out_type')
     return scores_out, labels_out, scores_out_type, labels_out_type
 
 #----------------------------------------------------------------------------
