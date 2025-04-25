@@ -68,7 +68,7 @@ grid        = EasyDict(size='1080p', layout='random')       # Options for train.
 # desc += '-mnist';               dataset = EasyDict(tfrecord_dir='mnist')
 
 # desc += '-objects';               dataset = EasyDict(tfrecord_dir='objects')
-desc += '-objects_transformer_dual_2';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2')
+desc += '-objects_transformer_dual_2_512';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512')
 
 # desc += '-objects_transformer_dual';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual')
 # desc += '-objects_transformer';               dataset = EasyDict(tfrecord_dir='objects_transformer')

@@ -97,7 +97,7 @@ def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt
     # print("random signal Labels : ",labels.shape)
     # print("random signal Latent : ", latents.dtype)
     # print("random signal Labels : ", labels.dtype)
-
+    print(latents.shape)
     fake_images_out = G.get_output_for(latents, labels, encoded_labels_type, is_training=True)
     fake_scores_out, fake_labels_out, fake_scores_type_out, fake_labels_type_out = fp32(D.get_output_for(fake_images_out, is_training=True))
     loss = -fake_scores_out -fake_scores_type_out

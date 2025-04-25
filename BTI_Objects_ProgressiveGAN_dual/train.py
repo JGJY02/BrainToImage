@@ -51,7 +51,7 @@ def setup_snapshot_image_grid(G, training_set,
     labels = np.zeros([gw * gh, training_set.label_size], dtype=training_set.label_dtype)
     labels_type = np.zeros([gw * gh, training_set.encoded_label_type_size], dtype=training_set.encoded_label_type_dtype)
 
-    encoded_eegs = np.zeros([gw * gh, 128], dtype=training_set.eeg_signals_dtype) #128 for latent size
+    encoded_eegs = np.zeros([gw * gh, 512], dtype=training_set.eeg_signals_dtype) #128 for latent size
 
     #Jared additions to obtain latents
     # batch_norm = tf.keras.layers.BatchNormalization()
@@ -216,10 +216,6 @@ def train_progressive_gan(
     
     encoder_model = 0
     ## ENd of Jared ADdition
-
-    ## Define embedding layer to be used later
-    embedding_layer = Embedding(input_dim=10, output_dim=128)
-
 
 
 

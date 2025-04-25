@@ -162,7 +162,7 @@ def G_paper(
     label_size          = 0,            # Dimensionality of the labels, 0 if no labels. Overridden based on dataset.
     fmap_base           = 8192,         # Overall multiplier for the number of feature maps.
     fmap_decay          = 1.0,          # log2 feature map reduction when doubling the resolution.
-    fmap_max            = 128,          # Maximum number of feature maps in any layer. Original 128
+    fmap_max            = 512,          # Maximum number of feature maps in any layer. Original 128
     latent_size         = None,         # Dimensionality of the latent vectors. None = min(fmap_base, fmap_max).
     normalize_latents   = True,         # Normalize latent vectors before feeding them to the network?
     use_wscale          = True,         # Enable equalized learning rate?
@@ -290,7 +290,7 @@ def D_paper(
     label_size          = 0,            # Dimensionality of the labels, 0 if no labels. Overridden based on dataset.
     fmap_base           = 8192,         # Overall multiplier for the number of feature maps.
     fmap_decay          = 1.0,          # log2 feature map reduction when doubling the resolution.
-    fmap_max            = 128,          # Maximum number of feature maps in any layer.
+    fmap_max            = 512,          # Maximum number of feature maps in any layer.
     use_wscale          = True,         # Enable equalized learning rate?
     mbstd_group_size    = 4,            # Group size for the minibatch standard deviation layer, 0 = disable.
     dtype               = 'float32',    # Data type to use for activations and outputs.
@@ -360,12 +360,13 @@ def D_paper(
                 with tf.compat.v1.variable_scope('Dense0'):
                     x = act(apply_bias(dense(x, fmaps=nf(res-2), use_wscale=use_wscale)))
                 with tf.compat.v1.variable_scope('Dense1'):
+                    temp = x
                     x = apply_bias(dense(x, fmaps=1+label_size, gain=1, use_wscale=use_wscale))
-                
+                    
 
                 if res == 2:
                     with tf.compat.v1.variable_scope('Dense2'):
-                        x2 = apply_bias(dense(x, fmaps=1+labels_type_size, gain=1, use_wscale=use_wscale))
+                        x2 = apply_bias(dense(temp, fmaps=1+labels_type_size, gain=1, use_wscale=use_wscale))
                         return x, x2
 
 

@@ -384,10 +384,10 @@ def create_DualObjects(tfrecord_dir, object_dir, fileName, classifierModelPath):
     signals = data['x_train_eeg']
     images = np.transpose(data['x_train_img'], (0, 3, 1, 2))
     labels = data['y_train']
-    # secondary_labels = data['y_train']
+    secondary_labels = data['y_secondary_train']
 
     class_labels = np.unique(labels)
-    # set_labels = np.unique(secondary_labels)
+    set_labels = np.unique(secondary_labels)
     ## #############
     # EEG Classifier
     ## #############
@@ -423,8 +423,7 @@ def create_DualObjects(tfrecord_dir, object_dir, fileName, classifierModelPath):
             device = torch.device(f"cuda:{gpu_id}")
         else:
             device = torch.device("cpu")
-
-        encoder_model = EEGViT_pretrained_dual()
+        encoder_model = EEGViT_pretrained_dual(data['y_train'].shape[1], data['y_secondary_train'].shape[1])
         encoder_model.load_state_dict(torch.load(classifierModelPath, map_location=device))
         encoder_model.eval() 
 

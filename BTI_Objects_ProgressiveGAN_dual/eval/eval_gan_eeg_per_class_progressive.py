@@ -143,7 +143,7 @@ for i in class_labels:
 # resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 # resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
 resume_run_id           = os.path.join("results", "075-pgan-objects_transformer_dual_2-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
-resume_snapshot         = 12000 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
+resume_snapshot         = 4247 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
 
 
 # #load generator to ekras model
