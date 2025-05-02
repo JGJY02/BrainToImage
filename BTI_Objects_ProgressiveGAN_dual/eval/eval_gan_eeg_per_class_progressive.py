@@ -142,7 +142,7 @@ for i in class_labels:
 # combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 # resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 # resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
-resume_run_id           = os.path.join("results", "075-pgan-objects_transformer_dual_2-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
+resume_run_id           = os.path.join("results", "076-pgan-objects_transformer_dual_2_512-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 resume_snapshot         = 4247 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
 
 
@@ -256,10 +256,8 @@ for i in class_labels:  ## outer loop per class
         minibatch_size = 4
         # print("The encoded eegs shape is :", encoded_eegs.shape)
         # print("The calculated minibatch size is :", minibatch_size)
-        generated_samples = Gs.run(encoded_eegs, conditioning_labels_raw, encoded_type_labels, minibatch_size = minibatch_size)
-        generated_samples = generated_samples*127.5 + 127.5
-        generated_samples = np.clip(generated_samples,0,255)
-        generated_samples = generated_samples.astype(np.uint8)
+        generated_samples = Gs.run(encoded_eegs, conditioning_labels_raw, conditioning_labels_type, minibatch_size = minibatch_size)
+
         
 
         validitys, labels_pred, validitys_type, labels_type_pred  = discriminator.run(generated_samples, minibatch_size = minibatch_size)
@@ -267,11 +265,14 @@ for i in class_labels:  ## outer loop per class
             ## predict on GAN
         true_images = np.pad(true_images, [(0,0), (2,2), (2,2), (0,0)], 'constant', constant_values=0) #pad images as progressiveGAN did so as well
         true_images_test = np.transpose(true_images, (0, 3, 1, 2)) 
+        true_images_test = (true_images_test/127.5) - 1
+
         validitys_true, labels_true_pred, validitys_type_true, labels_type_true_pred  = discriminator.run(true_images_test, minibatch_size = minibatch_size)
         generated_samples = np.transpose(generated_samples, (0, 2, 3, 1))
 
-        # print(validitys)
-        # print(labels)
+        generated_samples = generated_samples*127.5 + 127.5
+        generated_samples = np.clip(generated_samples,0,255)
+        generated_samples = generated_samples.astype(np.uint8)
 
 
 
@@ -293,7 +294,7 @@ for i in class_labels:  ## outer loop per class
 
 
 
-def save_imgs(images, name, class_label, conditioning_labels, conditioning_type,  predicted_labels, pred_type, real_label, real_type, output_dir):
+def save_imgs(images, name, class_label, conditioning_labels, conditioning_type,  predicted_labels, pred_type, real_label, real_type, output_dir, class_pred_array):
     # Set up the grid dimensions (10x10)
     rows = 10
     cols = 10
@@ -310,11 +311,12 @@ def save_imgs(images, name, class_label, conditioning_labels, conditioning_type,
             #P predicted
             #R True
             ax.set_title(f"C: {int(conditioning_labels[k])}, C_type: {int(conditioning_type[k])},\n P: {int(predicted_labels[k])},  P_type: {int(pred_type[k])},\n R: {int(real_label[k])}, R_type: {int(real_type[k])}", fontsize=8)
+            
             ax.axis('off')  # Hide the axes
         else:
             ax.axis('off')  # In case there are empty subplots
 
-
+        
     # Save the grid of images to a file
     output_path = f'{output_dir}/{name}_class{class_label}.png'
     if not os.path.exists(output_dir):
@@ -437,7 +439,7 @@ for i in class_labels:
 
     #For label type
     conditioning_labels_type_array = np.argmax(class_data['conditioning_type'], axis = 1)
-    pred_conditioning_labels_type_array = np.argmax(class_data['predicted_type'], axis = 1)
+    pred_labels_type_array = np.argmax(class_data['predicted_type'], axis = 1)
     true_labels_type_array = np.argmax(class_data['true_type'], axis = 1)
 
     #For Discriminator Prediction on Real images
@@ -454,17 +456,17 @@ for i in class_labels:
 
     save_imgs(class_data['true'], "Real", i, true_labels_array, true_labels_type_array, \
         pred_real_labels_array, pred_real_labels_type_array, \
-        true_labels_array, true_labels_type_array , output_dir)
+        true_labels_array, true_labels_type_array , output_dir, np.round(class_data['predicted'],3))
 
     save_imgs(class_data['generated'], "Generated", i ,conditioning_labels_array, conditioning_labels_type_array, \
-        predicted_labels_array, pred_conditioning_labels_type_array, \
-        true_labels_array, true_labels_type_array, output_dir)
+        predicted_labels_array, pred_labels_type_array, \
+        true_labels_array, true_labels_type_array, output_dir, np.round(class_data['labels_true_pred'],3))
 
     for j in range(class_data['generated'].shape[0]):
         if i == np.argmax(class_data['predicted'][j]):
             true_positives += 1
 
-        if i == np.argmax(class_data['predicted_type'][j]):
+        if np.argmax(class_data['true_type'][j]) == np.argmax(class_data['predicted_type'][j]):
             true_positives_type += 1
 
         y_true = class_data['true'][j][:,:,:]

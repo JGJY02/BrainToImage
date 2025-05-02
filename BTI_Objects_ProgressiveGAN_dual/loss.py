@@ -15,40 +15,41 @@ from keras.layers import (BatchNormalization, Conv2D, Dense, Dropout,
 import config
 import torch
 
+
 ##
 def is_tf_expression(x):
     return isinstance(x, tf.compat.v1.Tensor) or isinstance(x, tf.compat.v1.Variable) or isinstance(x, tf.compat.v1.Operation)
 
-def processSignals(eeg_signal, E):
-    # eeg_samples = tf.compat.v1.gather(eeg_signal, tf.compat.v1.random_uniform([minibatch_size], 0, eeg_signal.shape[0], dtype=tf.compat.v1.int32))
+# def processSignals(eeg_signal, E):
+#     # eeg_samples = tf.compat.v1.gather(eeg_signal, tf.compat.v1.random_uniform([minibatch_size], 0, eeg_signal.shape[0], dtype=tf.compat.v1.int32))
     
-    # latents = E.get_concrete_function(eeg_samples)
-    if config.TfOrTorch == "TF":
-        latents, labels = E(eeg_signal)
+#     # latents = E.get_concrete_function(eeg_samples)
+#     if config.TfOrTorch == "TF":
+#         latents, labels = E(eeg_signal)
 
-    elif config.TfOrTorch == "Torch":
-        if torch.cuda.is_available():
-            gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
-            torch.cuda.set_device(gpu_id)
-            device = torch.device(f"cuda:{gpu_id}")
-        else:
-            device = torch.device("cpu")
+#     elif config.TfOrTorch == "Torch":
+#         if torch.cuda.is_available():
+#             gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
+#             torch.cuda.set_device(gpu_id)
+#             device = torch.device(f"cuda:{gpu_id}")
+#         else:
+#             device = torch.device("cpu")
 
-        # with tf.compat.v1.Session() as sess:
-        #     eeg_signal = sess.run(eeg_signal)
+#         # with tf.compat.v1.Session() as sess:
+#         #     eeg_signal = sess.run(eeg_signal)
         
-        # eeg_signal = eeg_signal.numpy()
-        eeg_signal = np.transpose(eeg_signal, (0,2,1))[:,np.newaxis,:,:]
-        # print(eeg_signal.shape)
-        tensor_eeg  = torch.from_numpy(eeg_signal).to(device)
-        encoded_labels, encoded_eeg  = E(tensor_eeg)
+#         # eeg_signal = eeg_signal.numpy()
+#         eeg_signal = np.transpose(eeg_signal, (0,2,1))[:,np.newaxis,:,:]
+#         # print(eeg_signal.shape)
+#         tensor_eeg  = torch.from_numpy(eeg_signal).to(device)
+#         encoded_labels, encoded_eeg  = E(tensor_eeg)
 
-        encoded_eeg = encoded_eeg.detach().numpy()
-        predicted_labels = encoded_labels.detach().numpy()
-        latents = tf.convert_to_tensor(encoded_eeg)
-        labels = tf.convert_to_tensor(predicted_labels)
+#         encoded_eeg = encoded_eeg.detach().numpy()
+#         predicted_labels = encoded_labels.detach().numpy()
+#         latents = tf.convert_to_tensor(encoded_eeg)
+#         labels = tf.convert_to_tensor(predicted_labels)
 
-    return latents, labels
+#     return latents, labels
 
 ##
 
@@ -79,12 +80,11 @@ def fp32(*values):
 #         loss += label_penalty_fakes * cond_weight
 #     return loss
 
-def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt, training_set,  minibatch_size, 
-    cond_weight = 1.0): # Weight of the conditioning term.
+def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt, training_set,  minibatch_size, reals_gpu,
+    cond_weight = 1.0,): # Weight of the conditioning term.
     # latents, labels = processSignals(eeg_signal= eeg_signals, E=E)
 
     latents = encoded_signals
-    labels = encoded_labels
     # print("Extracted signal Latent : ", latents.shape)
     # print("Extracted signal Labels : ", labels.shape)
 
@@ -98,17 +98,24 @@ def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt
     # print("random signal Latent : ", latents.dtype)
     # print("random signal Labels : ", labels.dtype)
     print(latents.shape)
-    fake_images_out = G.get_output_for(latents, labels, encoded_labels_type, is_training=True)
+    fake_images_out = G.get_output_for(latents, encoded_labels, encoded_labels_type, is_training=True)
     fake_scores_out, fake_labels_out, fake_scores_type_out, fake_labels_type_out = fp32(D.get_output_for(fake_images_out, is_training=True))
     loss = -fake_scores_out -fake_scores_type_out
 
     if D.output_shapes[1][1] > 0:
         with tf.compat.v1.name_scope('LabelPenalty'):
-            label_penalty_fakes = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=fake_labels_out)
+            label_penalty_fakes = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=encoded_labels, logits=fake_labels_out)
             label_penalty_fakes_type = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=encoded_labels_type, logits=fake_labels_type_out)
-
         loss += (label_penalty_fakes+label_penalty_fakes_type) * cond_weight
     
+    # with tf.compat.v1.name_scope('MatchingPenalty'):
+    #     mse_loss = tf.reduce_mean(tf.square(reals_gpu - fake_images_out), axis=[1, 2, 3])
+    # loss += mse_loss
+
+    #     perceptual_loss_val = perceptual_loss(reals_gpu, fake_images_out)
+
+    # loss += perceptual_loss_val
+
     return loss
 
 #----------------------------------------------------------------------------
@@ -179,6 +186,7 @@ def D_wgangp_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, o
         mixed_images_out = tfutil.lerp(tf.compat.v1.cast(reals, fake_images_out.dtype), fake_images_out, mixing_factors)
         mixed_scores_out, mixed_labels_out, mixed_scores_type_out, mixed_labels_type_out = fp32(D.get_output_for(mixed_images_out, is_training=True))
         mixed_scores_out += mixed_scores_type_out
+        
         mixed_scores_out = tfutil.autosummary('Loss/mixed_scores', mixed_scores_out)
         mixed_loss = opt.apply_loss_scaling(tf.compat.v1.reduce_sum(mixed_scores_out))
         mixed_grads = opt.undo_loss_scaling(fp32(tf.compat.v1.gradients(mixed_loss, [mixed_images_out])[0]))

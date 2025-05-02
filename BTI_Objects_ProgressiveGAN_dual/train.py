@@ -73,6 +73,11 @@ def setup_snapshot_image_grid(G, training_set,
                 if encoded_label[0, y % training_set.label_size] == 0.0:
                     continue
             reals[idx] = real[0]
+            # reals[idx] = reals[idx]*127.5 + 127.5
+            reals[idx] = np.clip(reals[idx],0,255)
+            reals[idx] = reals[idx].astype(np.uint8)
+
+
             encoded_eegs[idx] = encoded_signal
 
             labels[idx] = encoded_label
@@ -245,7 +250,7 @@ def train_progressive_gan(
             ## End of EEG Sampling Addition
             with tf.compat.v1.name_scope('G_loss'), tf.compat.v1.control_dependencies(lod_assign_ops):
                 #G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, **config.G_loss)
-                G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, encoded_signals = encoded_signals, encoded_labels = encoded_labels, encoded_labels_type = encoded_labels_type, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, **config.G_loss)
+                G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, encoded_signals = encoded_signals, encoded_labels = encoded_labels, encoded_labels_type = encoded_labels_type, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, reals_gpu = reals_gpu, **config.G_loss)
                 # G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, E=encoder_model, embed = embedding_layer,opt=G_opt, training_set=training_set, eeg_signals= eeg_signals, minibatch_size=minibatch_split,labels = labels_gpu, **config.G_loss)
             with tf.compat.v1.name_scope('D_loss'), tf.compat.v1.control_dependencies(lod_assign_ops):
                 # D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, training_set=training_set, minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, **config.D_loss)

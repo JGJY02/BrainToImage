@@ -472,7 +472,8 @@ def create_DualObjects(tfrecord_dir, object_dir, fileName, classifierModelPath):
     images = images.reshape(-1, 3, 28, 28)
     images = np.array(images)
     images = np.pad(images, [(0,0), (0,0), (2,2), (2,2)], 'constant', constant_values=0)
-
+    # images = (images/127.5) - 1
+    # images = images.astype(np.float32)
     number_of_imgs = len(images)
 
 
@@ -484,7 +485,7 @@ def create_DualObjects(tfrecord_dir, object_dir, fileName, classifierModelPath):
 
     assert np.min(images) == 0 and np.max(images) == 255
     assert np.min(labels) == 0 and np.max(labels) == 9
-    assert np.min(encoded_labels) == 0 and np.max(labels) == 9
+    assert np.min(encoded_labels) == 0 and np.max(encoded_labels) == 9
     # assert np.min(encoded_type_labels) == 0 and np.max(encoded_type_labels) == 11
 
     
