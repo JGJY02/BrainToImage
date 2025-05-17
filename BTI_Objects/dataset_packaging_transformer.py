@@ -43,10 +43,16 @@ parser.add_argument('--classesToTake', type = int, help="Number of unique images
 parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllStack", required=False)
 parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car",required=False)
 
+parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= False, required=False)
+
+
 args = parser.parse_args()
 
 ## File Directories
-dataset_dir_path = f"{args.root_dir}/{args.input_dir}"
+if args.create_unseen:
+    dataset_dir_path = f"{args.root_dir}/{args.input_dir}/unseen"
+else:
+    dataset_dir_path = f"{args.root_dir}/{args.input_dir}"
 mne_dir_path = f"{args.root_dir}/{args.mne_dir}"
 
 dataset_file = f"filtered_{args.dataset_pickle}_eeg_data.pkl"
@@ -66,15 +72,13 @@ else:
 car_file_path = f"{output_dir_path}/{args.dataset_pickle}_car_correlation_output.pkl"
 
 output_prefix = f"{car_filter_percent_string}{args.output_prefix}"
-output_file_path = f"{output_dir_path}/{output_prefix}_{args.dataset_pickle}_{args.classesToTake}.pkl"
+output_file_path = f"{output_dir_path}/{output_prefix}_{args.dataset_pickle}_{args.classesToTake}_64.pkl"
 
 
 # os.makedirs(output_dir_path, exist_ok=True)
 
 
 ## Car parameters
-
-
 print(f"*** Processing files at car ratio of {args.car_filter_percent}")
 
 
@@ -85,10 +89,19 @@ df_copy = pd.read_pickle(f"{dataset_dir_path}/{files[0]}") #filtered_{output_fil
 print(df_copy.info())
 list_of_keys = list(df_copy.keys())
 list_of_keys = list_of_keys[2:65]
-class_labels = list(dict.fromkeys(df_copy['object_class']))
-softmax_labels = range(10) # range(len(class_labels))
-type_labels = range(args.classesToTake) #Index for each unique image
-softmax_dict = {i: item for i, item in enumerate(class_labels, start=0)} #Preset the dictionary
+
+if args.create_unseen == False:
+    class_labels = list(dict.fromkeys(df_copy['object_class']))
+    softmax_labels = range(10) # range(len(class_labels))
+    type_labels = range(args.classesToTake) #Index for each unique image
+    softmax_dict = {i: item for i, item in enumerate(class_labels, start=0)} #Preset the dictionary
+else:
+    existing_dataset =  pd.read_pickle(output_file_path)
+    softmax_labels = range(10) # range(len(class_labels))
+    type_labels = range(args.classesToTake) #Index for each unique image
+
+    softmax_dict = existing_dataset['dictionary']
+    output_file_path = f"{output_dir_path}/{output_prefix}_{args.dataset_pickle}_{args.classesToTake}_unseen.pkl"
 
 print(softmax_dict)
 
@@ -105,7 +118,7 @@ fraction = 1
 
 scales = np.arange(0.4, 60, 0.233)
 WINDOW_SIZE = 30
-img_size = (28,28)
+img_size = (64,64)
 
 obj_images_comp = []
 feature_data_comp = []

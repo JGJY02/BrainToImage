@@ -23,11 +23,11 @@ root_dir = 'datasets/processed_dataset'
 
 category = "All" #"sub-01"
 eeg_dataset_dir = f"{root_dir}/filter_mne_car/{category}"
-eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2.pkl" #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
+eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" #000thresh_AllStack_Transformer_dual_2_unseen #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
 result_dir = 'results'
 
 eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_2_512"
-evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512"
+evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64"
 #----------------------------------------------------------------------------
 TfOrTorch = "Torch" #Choose between TF or Torch
 dual = True
@@ -68,7 +68,7 @@ grid        = EasyDict(size='1080p', layout='random')       # Options for train.
 # desc += '-mnist';               dataset = EasyDict(tfrecord_dir='mnist')
 
 # desc += '-objects';               dataset = EasyDict(tfrecord_dir='objects')
-desc += '-objects_transformer_dual_2_512';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512')
+desc += '-objects_transformer_dual_2_512_64';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64')
 
 # desc += '-objects_transformer_dual';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual')
 # desc += '-objects_transformer';               dataset = EasyDict(tfrecord_dir='objects_transformer')

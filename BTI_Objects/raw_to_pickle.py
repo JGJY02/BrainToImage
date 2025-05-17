@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--input_root_dir', type=str, help="Directory to the dataset", default = "raw_dataset/eeg_dataset",required=False)
-parser.add_argument('--file', type=str, help="Directory to the dataset", default = "sub-05",required=False)
+parser.add_argument('--file', type=str, help="Directory to the dataset", default = "sub-11",required=False)
 parser.add_argument('--output_root_dir', type=str, help="Directory to output", default = "processed_dataset",required=False)
 args = parser.parse_args()
 

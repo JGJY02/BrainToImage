@@ -38,6 +38,7 @@ from sklearn.metrics import mean_squared_error
 from skimage.metrics import peak_signal_noise_ratio as psnr
 
 from image_similarity_measures.quality_metrics import fsim
+
 import tensorflow as tf
 import cv2
 
@@ -101,6 +102,7 @@ run_id = "934thresh_"
 eeg_dataset = f"{config.eeg_dataset_dir}/{config.eeg_dataset_pickle}"
 print(f"Reading data file {eeg_dataset}")
 eeg_data = pickle.load(open(eeg_dataset, 'rb'), encoding='bytes')
+label_dictionary = eeg_data['dictionary']
 signals = eeg_data['x_test_eeg']
 to_labels = np.argmax(eeg_data['y_test'],axis=1)  ## since eeg labels are in one-hot encoded format
 
@@ -142,8 +144,8 @@ for i in class_labels:
 # combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 # resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 # resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
-resume_run_id           = os.path.join("results", "076-pgan-objects_transformer_dual_2_512-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
-resume_snapshot         = 4247 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
+resume_run_id           = os.path.join("results", "083-pgan-objects_transformer_dual_2_512_64-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
+resume_snapshot         = 5427 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
 
 
 # #load generator to ekras model
@@ -263,7 +265,7 @@ for i in class_labels:  ## outer loop per class
         validitys, labels_pred, validitys_type, labels_type_pred  = discriminator.run(generated_samples, minibatch_size = minibatch_size)
 
             ## predict on GAN
-        true_images = np.pad(true_images, [(0,0), (2,2), (2,2), (0,0)], 'constant', constant_values=0) #pad images as progressiveGAN did so as well
+        # true_images = np.pad(true_images, [(0,0), (2,2), (2,2), (0,0)], 'constant', constant_values=0) #pad images as progressiveGAN did so as well
         true_images_test = np.transpose(true_images, (0, 3, 1, 2)) 
         true_images_test = (true_images_test/127.5) - 1
 
@@ -273,6 +275,10 @@ for i in class_labels:  ## outer loop per class
         generated_samples = generated_samples*127.5 + 127.5
         generated_samples = np.clip(generated_samples,0,255)
         generated_samples = generated_samples.astype(np.uint8)
+
+        # print("labels predicted : ", labels_pred)
+        # print("labels conditioning : ", conditioning_labels_raw)
+        # print("True label : ", labels_true_pred)
 
 
 
@@ -294,7 +300,7 @@ for i in class_labels:  ## outer loop per class
 
 
 
-def save_imgs(images, name, class_label, conditioning_labels, conditioning_type,  predicted_labels, pred_type, real_label, real_type, output_dir, class_pred_array):
+def save_imgs(images, name, class_label, conditioning_labels, conditioning_type,  predicted_labels, pred_type, real_label, real_type, output_dir, label_dictionary):
     # Set up the grid dimensions (10x10)
     rows = 10
     cols = 10
@@ -318,7 +324,7 @@ def save_imgs(images, name, class_label, conditioning_labels, conditioning_type,
 
         
     # Save the grid of images to a file
-    output_path = f'{output_dir}/{name}_class{class_label}.png'
+    output_path = f'{output_dir}/{name}_class{class_label}_{label_dictionary[class_label]}.png'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     plt.tight_layout()
@@ -456,11 +462,11 @@ for i in class_labels:
 
     save_imgs(class_data['true'], "Real", i, true_labels_array, true_labels_type_array, \
         pred_real_labels_array, pred_real_labels_type_array, \
-        true_labels_array, true_labels_type_array , output_dir, np.round(class_data['predicted'],3))
+        true_labels_array, true_labels_type_array , output_dir, label_dictionary)
 
     save_imgs(class_data['generated'], "Generated", i ,conditioning_labels_array, conditioning_labels_type_array, \
         predicted_labels_array, pred_labels_type_array, \
-        true_labels_array, true_labels_type_array, output_dir, np.round(class_data['labels_true_pred'],3))
+        true_labels_array, true_labels_type_array, output_dir, label_dictionary)
 
     for j in range(class_data['generated'].shape[0]):
         if i == np.argmax(class_data['predicted'][j]):
@@ -503,7 +509,7 @@ for i in class_labels:
     evaluation[i] = {'average_ssim':np.mean(ssim_scores),'average_rmse':np.mean(rmse_scores),'average_psnr':np.mean(psnr_scores),'average_fsim':np.mean(fsim_scores),'average_uiq':np.mean(uiq_scores)}
     class_acc = true_positives / class_data['generated'].shape[0]
     class_type_acc = true_positives_type / class_data['generated'].shape[0]
-    text_to_print = f"Class {i}: mean ssim: {evaluation[i]['average_ssim']:.2f}, mean rmse: {evaluation[i]['average_rmse']:.2f}, mean psnr: {evaluation[i]['average_psnr']:.2f},  \
+    text_to_print = f"Class {i} ({label_dictionary[i]}): mean ssim: {evaluation[i]['average_ssim']:.2f}, mean rmse: {evaluation[i]['average_rmse']:.2f}, mean psnr: {evaluation[i]['average_psnr']:.2f},  \
         mean fsim: {evaluation[i]['average_fsim']:.2f}, mean uiq: {evaluation[i]['average_uiq']:.2f},classification acc: {class_acc:.1%},classification type acc: {class_type_acc:.1%}"
     text_to_save.append(text_to_print)
     print(text_to_print)

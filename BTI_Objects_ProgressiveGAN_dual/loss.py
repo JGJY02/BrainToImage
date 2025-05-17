@@ -81,9 +81,9 @@ def fp32(*values):
 #     return loss
 
 def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt, training_set,  minibatch_size, reals_gpu,
-    cond_weight = 1.0,): # Weight of the conditioning term.
+    cond_weight = 1): # Weight of the conditioning term.
     # latents, labels = processSignals(eeg_signal= eeg_signals, E=E)
-
+    # print(cond_weight)
     latents = encoded_signals
     # print("Extracted signal Latent : ", latents.shape)
     # print("Extracted signal Labels : ", labels.shape)
@@ -108,9 +108,9 @@ def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt
             label_penalty_fakes_type = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(labels=encoded_labels_type, logits=fake_labels_type_out)
         loss += (label_penalty_fakes+label_penalty_fakes_type) * cond_weight
     
-    # with tf.compat.v1.name_scope('MatchingPenalty'):
-    #     mse_loss = tf.reduce_mean(tf.square(reals_gpu - fake_images_out), axis=[1, 2, 3])
-    # loss += mse_loss
+    with tf.compat.v1.name_scope('MatchingPenalty'):
+        mse_loss = tf.reduce_mean(tf.square(reals_gpu - fake_images_out), axis=[1, 2, 3])
+    loss += mse_loss
 
     #     perceptual_loss_val = perceptual_loss(reals_gpu, fake_images_out)
 
@@ -164,7 +164,7 @@ def D_wgangp_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, o
     wgan_lambda     = 10.0,     # Weight for the gradient penalty term.
     wgan_epsilon    = 0.001,    # Weight for the epsilon term, \epsilon_{drift}.
     wgan_target     = 1.0,      # Target value for gradient magnitudes.
-    cond_weight     = 1.0):     # Weight of the conditioning terms.
+    cond_weight     = 1):     # Weight of the conditioning terms.
 
     # latents, labels_predicted = processSignals(eeg_signal=eeg_signals, E=E)
     

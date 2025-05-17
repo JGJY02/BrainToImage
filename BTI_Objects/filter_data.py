@@ -10,7 +10,7 @@ import argparse
 ## Argument parser 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "processed_dataset/raw_pickle",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="sub-0x (where x 1-50)", default = "sub-05" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="sub-0x (where x 1-50)", default = "sub-11" , required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to save processed file", default = "processed_dataset/filtered_pickle",required=False)
 
 args = parser.parse_args()

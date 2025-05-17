@@ -469,15 +469,15 @@ def create_DualObjects(tfrecord_dir, object_dir, fileName, classifierModelPath):
     labels = labels.astype(np.int32)
     
 
-    images = images.reshape(-1, 3, 28, 28)
+    images = images.reshape(-1, 3, 64, 64)
     images = np.array(images)
-    images = np.pad(images, [(0,0), (0,0), (2,2), (2,2)], 'constant', constant_values=0)
+    # images = np.pad(images, [(0,0), (0,0), (2,2), (2,2)], 'constant', constant_values=0)
     # images = (images/127.5) - 1
     # images = images.astype(np.float32)
     number_of_imgs = len(images)
 
 
-    assert images.shape == (number_of_imgs, 3, 32, 32) and images.dtype == np.uint8
+    assert images.shape == (number_of_imgs, 3, 64, 64) and images.dtype == np.uint8
     assert labels.shape == (number_of_imgs,) and labels.dtype == np.int32
     assert encoded_labels.shape == (number_of_imgs,) and encoded_labels.dtype == np.int32
     assert encoded_type_labels.shape == (number_of_imgs,) and encoded_type_labels.dtype == np.int32
@@ -615,7 +615,7 @@ def create_Objects(tfrecord_dir, object_dir, fileName, classifierModelPath):
 
     images = images.reshape(-1, 3, 28, 28)
     images = np.array(images)
-    images = np.pad(images, [(0,0), (0,0), (2,2), (2,2)], 'constant', constant_values=0)
+    # images = np.pad(images, [(0,0), (0,0), (2,2), (2,2)], 'constant', constant_values=0)
 
     number_of_imgs = len(images)
 
