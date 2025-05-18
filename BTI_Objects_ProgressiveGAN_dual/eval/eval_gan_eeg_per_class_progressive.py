@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 ## new metrics
-from sklearn.metrics import mean_squared_error 
+from sklearn.metrics import mean_squared_error, f1_score, precision_score, recall_score 
 from skimage.metrics import peak_signal_noise_ratio as psnr
 
 from image_similarity_measures.quality_metrics import fsim
@@ -416,6 +416,13 @@ mean_uiq_scores = []
 mean_accuracy_scores = []
 mean_accuracy_type_scores = []
 
+mean_precision_scores = []
+mean_recall_scores = []
+mean_F1_scores =[]
+
+mean_type_precision_scores = []
+mean_type_recall_scores = []
+mean_type_F1_scores =[]
 
 num_of_sample_images = 10
 
@@ -433,7 +440,13 @@ for i in class_labels:
     fsim_scores = []
     uiq_scores = []
 
+    precision_scores = []
+    recall_scores = []
+    F1_scores = []
 
+    precision_type_scores = []
+    recall_type_scores = []
+    F1_type_scores = []
 
     true_positives = 0
     true_positives_type = 0
@@ -469,14 +482,16 @@ for i in class_labels:
         true_labels_array, true_labels_type_array, output_dir, label_dictionary)
 
     for j in range(class_data['generated'].shape[0]):
-        if i == np.argmax(class_data['predicted'][j]):
+        if i == np.argmax(class_data['conditioning'][j]):
             true_positives += 1
 
-        if np.argmax(class_data['true_type'][j]) == np.argmax(class_data['predicted_type'][j]):
+        if np.argmax(class_data['true_type'][j]) == np.argmax(class_data['conditioning_type'][j]):
             true_positives_type += 1
 
         y_true = class_data['true'][j][:,:,:]
         y_pred = class_data['generated'][j][:,:,:]
+
+
 
         # print(y_true.shape)
         # print(y_pred.shape)
@@ -497,20 +512,47 @@ for i in class_labels:
         #UIQ 
         uiq_value = compute_uiq(y_true, y_pred)
 
+
+
         #Append all scores
         ssim_scores.append(ssim_value)
         rmse_scores.append(rmse_value)
         psnr_scores.append(psnr_value)
         fsim_scores.append(fsim_value)
         uiq_scores.append(uiq_value)
+
+        # F1_scores.append(F1_value)
+        # recall_scores.append(recall_value)
+        # precision_scores.append(precision_value)
+
+        # F1_type_scores.append(F1_type_value)
+        # recall_type_scores.append(recall_type_value)
+        # precision_type_scores.append(precision_type_value)
+    
+    #F1
+    F1_value = f1_score(true_labels_array, conditioning_labels_array, average='macro')
+    F1_type_value = f1_score(true_labels_type_array, conditioning_labels_type_array, average='macro')
+
+
+    #Recall
+    recall_value = recall_score(true_labels_array, conditioning_labels_array, average='macro')
+    recall_type_value = recall_score(true_labels_type_array, conditioning_labels_type_array, average='macro')
+
+    #Precision
+    precision_value = precision_score(true_labels_array,conditioning_labels_array, average='macro')
+    precision_type_value = precision_score(true_labels_type_array,conditioning_labels_type_array, average='macro')
         
 
 
-    evaluation[i] = {'average_ssim':np.mean(ssim_scores),'average_rmse':np.mean(rmse_scores),'average_psnr':np.mean(psnr_scores),'average_fsim':np.mean(fsim_scores),'average_uiq':np.mean(uiq_scores)}
+    evaluation[i] = {'average_ssim': np.mean(ssim_scores),'average_rmse':np.mean(rmse_scores),'average_psnr':np.mean(psnr_scores),'average_fsim':np.mean(fsim_scores),'average_uiq':np.mean(uiq_scores),\
+        'average_F1':F1_value,'average_recall':recall_value,'average_precision':precision_value,\
+        'average_type_F1':F1_type_value,'average_type_recall':recall_type_value,'average_type_precision':precision_type_value}
     class_acc = true_positives / class_data['generated'].shape[0]
     class_type_acc = true_positives_type / class_data['generated'].shape[0]
     text_to_print = f"Class {i} ({label_dictionary[i]}): mean ssim: {evaluation[i]['average_ssim']:.2f}, mean rmse: {evaluation[i]['average_rmse']:.2f}, mean psnr: {evaluation[i]['average_psnr']:.2f},  \
-        mean fsim: {evaluation[i]['average_fsim']:.2f}, mean uiq: {evaluation[i]['average_uiq']:.2f},classification acc: {class_acc:.1%},classification type acc: {class_type_acc:.1%}"
+        mean fsim: {evaluation[i]['average_fsim']:.2f}, mean uiq: {evaluation[i]['average_uiq']:.2f}, classification acc: {class_acc:.1%}, classification type acc: {class_type_acc:.1%}, \n \
+        mean F1 {evaluation[i]['average_F1']:.2f}, mean recall {evaluation[i]['average_recall']:.2f}, mean precision {evaluation[i]['average_precision']:.2f} , \n \
+        mean type F1 {evaluation[i]['average_type_F1']:.2f}, mean type recall {evaluation[i]['average_type_recall']:.2f}, mean type precision {evaluation[i]['average_type_precision']:.2f} \n   "
     text_to_save.append(text_to_print)
     print(text_to_print)
 
@@ -523,13 +565,24 @@ mean_uiq_scores.append(evaluation[i]['average_uiq'])
 mean_accuracy_scores.append(class_acc)
 mean_accuracy_type_scores.append(class_type_acc)
 
+mean_F1_scores.append(evaluation[i]['average_F1'])
+mean_recall_scores.append(evaluation[i]['average_recall'])
+mean_precision_scores.append(evaluation[i]['average_precision'])
 
-
+mean_type_F1_scores.append(evaluation[i]['average_type_F1'])
+mean_type_recall_scores.append(evaluation[i]['average_type_recall'])
+mean_type_precision_scores.append(evaluation[i]['average_type_precision'])
 
 mean_evaluation = {'average_ssim':np.mean(ssim_scores),'average_rmse':np.mean(rmse_scores),'average_psnr':np.mean(psnr_scores),'average_fsim':np.mean(fsim_scores),'average_uiq':np.mean(uiq_scores), \
-    'average_accuracy':np.mean(mean_accuracy_scores), 'average_type_accuracy':np.mean(mean_accuracy_type_scores)}
+    'average_accuracy':np.mean(mean_accuracy_scores), 'average_type_accuracy':np.mean(mean_accuracy_type_scores), \
+    'average_f1' : np.mean(mean_F1_scores), 'average_recall' : np.mean(mean_recall_scores), 'average_precision' : np.mean(mean_precision_scores), \
+    'average_type_f1' : np.mean(mean_type_F1_scores), 'average_type_recall' : np.mean(mean_type_recall_scores), 'average_type_precision' : np.mean(mean_type_precision_scores), 
+        }
+
 mean_text_to_print = f"Average Class Results: mean ssim: {mean_evaluation['average_ssim']:.2f}, mean rmse: {mean_evaluation['average_rmse']:.2f}, mean psnr: {mean_evaluation['average_psnr']:.2f}, \
-    mean fsim: {mean_evaluation['average_fsim']:.2f}, mean uiq: {mean_evaluation['average_uiq']:.2f},mean classification acc: {mean_evaluation['average_accuracy']:.1%} ,mean type classification acc: {mean_evaluation['average_type_accuracy']:.1%}"
+    mean fsim: {mean_evaluation['average_fsim']:.2f}, mean uiq: {mean_evaluation['average_uiq']:.2f},mean classification acc: {mean_evaluation['average_accuracy']:.1%} ,mean type classification acc: {mean_evaluation['average_type_accuracy']:.1%} \n \
+    mean F1: {mean_evaluation['average_f1']:.2f}, mean recall: {mean_evaluation['average_recall']:.2f}, mean precision: {mean_evaluation['average_precision']:.2f} \n \
+    mean type F1: {mean_evaluation['average_type_f1']:.2f}, mean type recall: {mean_evaluation['average_type_recall']:.2f}, mean type precision: {mean_evaluation['average_type_precision']:.2f} \n        "
 print(mean_text_to_print)
 text_to_save.append(mean_text_to_print)
 
