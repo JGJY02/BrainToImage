@@ -38,21 +38,21 @@ os.chdir(main_dir) #Jared Edition
 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--root_dir', type=str, help="Directory to the dataset", default = "processed_dataset/filter_mne_car",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_All.pkl / CNN 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackTransformer_All.pkl", default = "000thresh_AllStackTransformer_All.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_dual_All_2.pkl / CNN 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackTransformer_All.pkl", default = "000thresh_AllStackLstm_dual_All_2.pkl" , required=False)
 
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
 
 parser.add_argument('--classifier_path', type=str, help="directory to the classifier", default= "trained_models/classifiers", required=False)
 parser.add_argument('--classifier_model', type=str, help="Name of the model", default= "eeg_classifier_adm5", required=False)
-parser.add_argument('--GAN_type', type=str, help="DC or AC or Caps", default = "CAPS",required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or Caps", default = "AC",required=False)
 parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/GANs",required=False)
 
-parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "Torch")
-parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "Transformer")
-parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "Transformer_all_stacked_signals")
+parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "LSTM")
+parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "LSTM_all_stacked_signals_single")
 
-parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "Transformer_encoder")
+parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "LSTM_encoder")
 
 
 parser.add_argument('--batch_size', type=int, help="Batch size", default = 32,required=False)
@@ -116,7 +116,7 @@ eeg_data_dir = f"{args.root_dir}/{args.datasetType}/{args.input_dir}"
 eeg_data_file = f"{eeg_data_dir}/{args.dataset_pickle}"
 print(f"** Reading data file {eeg_data_file}")
 object_data = pickle.load(open(f"{eeg_data_file}", 'rb'), encoding='bytes')
-(x_train, y_train) , (x_test, y_test) = (object_data['x_train_img'], object_data['y_train']) , (object_data['x_test_img'], object_data['y_test'])
+(x_train, y_train, y_secondary_train) , (x_test, y_test, y_secondary_test) = (object_data['x_train_img'], object_data['y_train'], object_data['y_secondary_train']) , (object_data['x_test_img'], object_data['y_test'], object_data['y_secondary_test'])
 
 x_train = (np.array(x_train) - 127.5) / 127.5
 x_test = (np.array(x_test) - 127.5) / 127.5
@@ -216,6 +216,26 @@ elif args.ClassifierImplementation == "Torch":
 
 history = {'Discriminator':[],'Generator':[]}
 print(f"** Classifier used: {classifier_model_path}")
+
+
+## Encode all signals first before training
+if args.ClassifierImplementation == "TF":
+    encoded_eeg_all, encoded_labels_all = encoder_model.predict(eeg_data['x_train_eeg'])
+    predicted_labels = np.argmax(encoded_labels_all,axis=1)
+
+elif args.ClassifierImplementation == "Torch":
+    with torch.no_grad():
+        # print(eeg_samples.shape)
+        eeg_samples = eeg_data['x_train_eeg'][:,np.newaxis,:,:]
+        tensor_eeg  = torch.from_numpy(eeg_samples).to(device)
+        encoded_labels_all, encoded_eeg_all  = encoder_model(tensor_eeg)
+        predicted_labels = torch.argmax(encoded_labels_all, dim=1)
+
+        encoded_eeg_all = encoded_eeg_all.cpu().numpy()
+        predicted_labels = predicted_labels.cpu().numpy()
+        encoded_eeg_all = tf.convert_to_tensor(encoded_eeg_all)
+        predicted_labels = tf.convert_to_tensor(predicted_labels)
+
 for epoch in range(epochs+1):
 
     # ---------------------
@@ -224,11 +244,15 @@ for epoch in range(epochs+1):
     # Sample EEG latent space from EEG Classifier as generator input
     # _train_ run used eeg data from train to predict on, so the model had seen this data.
     # _test_ run should use data from test as the classifier hasn't seen this data before.
-    sample_indexs = np.random.choice(eeg_data['x_train_eeg'  ].shape[0], size=batch_size, replace=False)
-    eeg_samples = eeg_data['x_train_eeg'  ][sample_indexs]
+    sample_indexs = np.random.choice(eeg_data['x_train_eeg'].shape[0], size=batch_size, replace=False)
+    # eeg_samples = eeg_data['x_train_eeg'  ][sample_indexs]
+    encoded_eeg = encoded_eeg_all[sample_indexs]
+    encoded_labels = predicted_labels[sample_indexs]
     # The labels of the digits that the generator tries to create an
     # image representation of
     sampled_labels = np.argmax(eeg_data['y_train'][sample_indexs],axis=1)
+    sampled_labels_type = np.argmax(eeg_data['y_train_secondary'][sample_indexs],axis=1)
+
 
     # Select a random batch of REAL images with corresponding lables
     # from MNIST image data
@@ -240,21 +264,21 @@ for epoch in range(epochs+1):
 
 
     #sampled_lables = to_categorical(sampled_labels,num_classes=len(class_labels),dtype=np.int32)
-    if args.ClassifierImplementation == "TF":
-        encoded_eeg, encoded_labels = encoder_model.predict(eeg_samples)
-        predicted_labels = np.argmax(encoded_labels,axis=1)
-    elif args.ClassifierImplementation == "Torch":
-        with torch.no_grad():
-            # print(eeg_samples.shape)
-            eeg_samples = eeg_samples[:,np.newaxis,:,:]
-            tensor_eeg  = torch.from_numpy(eeg_samples).to(device)
-            encoded_labels, encoded_eeg  = encoder_model(tensor_eeg)
-            predicted_labels = torch.argmax(encoded_labels, dim=1)
+    # if args.ClassifierImplementation == "TF":
+    #     encoded_eeg, encoded_labels = encoder_model.predict(eeg_samples)
+    #     predicted_labels = np.argmax(encoded_labels,axis=1)
+    # elif args.ClassifierImplementation == "Torch":
+    #     with torch.no_grad():
+    #         # print(eeg_samples.shape)
+    #         eeg_samples = eeg_samples[:,np.newaxis,:,:]
+    #         tensor_eeg  = torch.from_numpy(eeg_samples).to(device)
+    #         encoded_labels, encoded_eeg  = encoder_model(tensor_eeg)
+    #         predicted_labels = torch.argmax(encoded_labels, dim=1)
 
-            encoded_eeg = encoded_eeg.cpu().numpy()
-            predicted_labels = predicted_labels.cpu().numpy()
-            encoded_eeg = tf.convert_to_tensor(encoded_eeg)
-            predicted_labels = tf.convert_to_tensor(predicted_labels)
+    #         encoded_eeg = encoded_eeg.cpu().numpy()
+    #         predicted_labels = predicted_labels.cpu().numpy()
+    #         encoded_eeg = tf.convert_to_tensor(encoded_eeg)
+    #         predicted_labels = tf.convert_to_tensor(predicted_labels)
 
     # Generate a half batch of new images
     gen_imgs = generator.predict([encoded_eeg, predicted_labels])

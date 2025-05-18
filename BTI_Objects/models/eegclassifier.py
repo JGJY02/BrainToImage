@@ -59,6 +59,58 @@ if __name__ == '__main__':
 
 
 ## Testing other encoders
+def convolutional_encoder_model_512(channels, observations, num_classes, verbose=False):
+    model = Sequential([
+    BatchNormalization(input_shape=(channels, observations, 1), name="EEG_BN1"),
+    Conv2D(128, (1, 4), activation='relu', padding='same', name="EEG_series_Conv2D"),
+    Conv2D(64, (channels, 1), activation='relu',padding='same', name="EEG_channel_Conv2D"),
+    MaxPooling2D((1, 2), name="EEG_feature_pool1"),
+    Conv2D(64, (4, 25), activation='relu', data_format='channels_first', name="EEG_feature_Conv2D1"),
+    MaxPooling2D((1, 2), name="EEG_feature_pool2"),
+    Conv2D(128, (50, 2), activation='relu', name="EEG_feature_Conv2D2"),
+    Flatten(name="EEG_feature_flatten"),
+
+    BatchNormalization(name="EEG_feature_BN1"),
+    Dense(512, activation='relu', name="EEG_feature_FC512"),
+    Dropout(0.1, name="EEG_feature_drop1"),
+    BatchNormalization(name="EEG_feature_BN2"),
+    Dense(num_classes, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_Labels")
+    ], name="EEG_Classifier")
+
+    if verbose:
+        model.summary(show_trainable=True,expand_nested=True)
+
+    return model
+
+def convolutional_encoder_model_512_dual(channels, observations, num_classes, num_types = 2, verbose=False):
+
+
+    model = Sequential([
+    BatchNormalization(input_shape=(channels, observations, 1), name="EEG_BN1"),
+    Conv2D(128, (1, 4), activation='relu', padding='same', name="EEG_series_Conv2D"),
+    Conv2D(64, (channels, 1), activation='relu',padding='same', name="EEG_channel_Conv2D"),
+    MaxPooling2D((1, 2), name="EEG_feature_pool1"),
+    Conv2D(64, (4, 25), activation='relu', data_format='channels_first', name="EEG_feature_Conv2D1"),
+    MaxPooling2D((1, 2), name="EEG_feature_pool2"),
+    Conv2D(128, (50, 2), activation='relu', name="EEG_feature_Conv2D2"),
+    Flatten(name="EEG_feature_flatten"),
+
+    BatchNormalization(name="EEG_feature_BN1"),
+    Dense(512, activation='relu', name="EEG_feature_FC512")
+    ], name="EEG_Classifier")
+
+    encoder_inputs = Input(shape=(channels, observations, 1))
+    latent = model(encoder_inputs)
+    classification_main = Dense(num_classes, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_Labels")(latent)
+    classification_type = Dense(num_types, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_type_Labels")(latent)
+    full_model = Model(inputs=encoder_inputs, outputs=[classification_main, classification_type])
+
+
+    return full_model
+
+if __name__ == '__main__':
+    classifier = convolutional_encoder_model(9, 32, 10, verbose=True)
+
 def convolutional_encoder_model_expanded(channels, observations, num_classes, verbose=False):
     print(channels)
     print(observations)
@@ -201,30 +253,14 @@ def convolutional_encoder_model_spectrogram_middle_latent(width, height, verbose
 
 ## LSTM encoder model
 
-def LSTM_Classifier(timesteps, features, num_classes, latent_size = 128, verbose=False): 
+def LSTM_Classifier(timesteps, features, num_classes, latent_size = 512, verbose=False): 
 
     model = Sequential([
     
     LSTM(latent_size*2, activation='tanh', return_sequences=True, input_shape=(timesteps, features) ,name = "EEG_feature_LSTM_1"),
     LSTM(latent_size, activation='tanh', return_sequences=False ,name = "EEG_feature_LSTM_2"),
-    # LSTM(256, activation='tanh', input_shape=(timesteps, features) , return_sequences=False ,name = "EEG_channel_LSTM_1_3"),
-    # Dense(256, activation='relu', name="EEG_feature_FC256_1"),   ## extract and use this as latent space for input to GAN
-
-    # Dense(128, activation='relu', name="EEG_feature_FC128"),   ## extract and use this as latent space for input to GAN
-    # Dropout(0.4, name="EEG_feature_drop3"),
     BatchNormalization(name="EEG_feature_BN2"),
     Dense(num_classes, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_Labels")
-
-
-    # Dense(256, activation='relu', name="EEG_feature_FC128_2"),   ## extract and use this as latent space for input to GAN
-
-    
-    # RepeatVector(timesteps),
-    # LSTM(256, activation='tanh', return_sequences=True, name = "EEG_channel_LSTM_2_3"),
-    # LSTM(128, activation='tanh', return_sequences=True, name = "EEG_channel_LSTM_2_2"),
-    # LSTM(64, activation='tanh', return_sequences=True,name = "EEG_channel_LSTM_2_1"),
-
-    # Dense(32)
     ], name="classifier")
 
     if verbose:
@@ -232,6 +268,26 @@ def LSTM_Classifier(timesteps, features, num_classes, latent_size = 128, verbose
 
     return model
 
+
+
+
+def LSTM_Classifier_dual_512(timesteps, features, latent_size,  num_classes, num_types = 2,  verbose=False): 
+
+    model = Sequential([
+    
+    LSTM(latent_size*2, activation='tanh', return_sequences=True, input_shape=(timesteps, features) ,name = "EEG_feature_LSTM_1"),
+    LSTM(latent_size, activation='tanh', return_sequences=False ,name = "EEG_feature_LSTM_2"),
+    BatchNormalization(name="EEG_feature_BN2")
+    ], name="classifier")
+
+    encoder_inputs = Input(shape=(timesteps, features))
+    latent = model(encoder_inputs)
+    classification_main = Dense(num_classes, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_Labels")(latent)
+    classification_type = Dense(num_types, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_type_Labels")(latent)
+    full_model = Model(inputs=encoder_inputs, outputs=[classification_main, classification_type])
+
+
+    return full_model
 
 ## VAE encoder
 def sampling(args):

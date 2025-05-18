@@ -6,7 +6,7 @@ from torch import nn
 import transformers
 
 class EEGViT_pretrained(nn.Module):
-    def __init__(self, num_of_classes, num_of_types):
+    def __init__(self, num_of_classes):
         super().__init__()
         self.conv1 = nn.Conv2d(
             in_channels=1, 
@@ -32,13 +32,13 @@ class EEGViT_pretrained(nn.Module):
         self.ViT = model
 
         self.extract_latent = torch.nn.Sequential(
-                                    torch.nn.Linear(1000,128,bias=True),
-                                    torch.nn.BatchNorm1d(128),
+                                    torch.nn.Linear(1000,512,bias=True),
+                                    torch.nn.BatchNorm1d(512),
                                     torch.nn.Dropout(p=0.1))
 
-        self.classification_head = torch.nn.Linear(128,num_of_classes,bias=True)
+        self.classification_head = torch.nn.Linear(512,num_of_classes,bias=True)
 
-        self.type_classification_head = torch.nn.Linear(128,num_of_types,bias=True)
+        # self.type_classification_head = torch.nn.Linear(512,num_of_types,bias=True)
 
         
     def forward(self,x):
@@ -48,9 +48,9 @@ class EEGViT_pretrained(nn.Module):
         x=self.ViT.forward(x).logits
         latent = self.extract_latent(x)
         class_out = self.classification_head(latent)
-        class_type_out =  self.type_classification_head(latent)
+        # class_type_out =  self.type_classification_head(latent)
         
-        return class_out, latent, class_type_out
+        return class_out, latent
 
 
 class EEGViT_pretrained_512(nn.Module):

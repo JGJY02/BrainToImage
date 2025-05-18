@@ -37,14 +37,22 @@ parser.add_argument('--mne_dir', type=str, help="mne directory", default = "mne_
 parser.add_argument('--dataset_pickle', type=str, help="sub-0x (where x 1-50)", default = "All" , required=False)
 parser.add_argument('--car_filter_percent', type=float, help="ratio to filter baseline 0.934", default = 0.00, required=False)
 parser.add_argument('--filter_from_scratch', type = bool, help="Filter from scratch or load processed file", default = True)
+parser.add_argument('--classesToTake', type = int, help="Number of unique images to take for each class", default = 2)
 
-parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllSlidingCNN", required=False)
+parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllSlidingCNN_dual", required=False)
 parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car/CNN_encoder",required=False)
+
+parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= False, required=False)
+
 
 args = parser.parse_args()
 
 ## File Directories
-dataset_dir_path = f"{args.root_dir}/{args.input_dir}"
+if args.create_unseen:
+    dataset_dir_path = f"{args.root_dir}/{args.input_dir}/unseen"
+else:
+    dataset_dir_path = f"{args.root_dir}/{args.input_dir}"
+
 mne_dir_path = f"{args.root_dir}/{args.mne_dir}"
 
 dataset_file = f"filtered_{args.dataset_pickle}_eeg_data.pkl"
@@ -83,9 +91,20 @@ df_copy = pd.read_pickle(f"{dataset_dir_path}/{files[0]}") #filtered_{output_fil
 print(df_copy.info())
 list_of_keys = list(df_copy.keys())
 list_of_keys = list_of_keys[2:65]
-class_labels = list(dict.fromkeys(df_copy['object_class']))
-softmax_labels = range(10) # range(len(class_labels))
-softmax_dict = {i: item for i, item in enumerate(class_labels, start=0)} #Preset the dictionary
+
+
+if args.create_unseen == False:
+    class_labels = list(dict.fromkeys(df_copy['object_class']))
+    softmax_labels = range(10) # range(len(class_labels))
+    type_labels = range(args.classesToTake) #Index for each unique image
+    softmax_dict = {i: item for i, item in enumerate(class_labels, start=0)} #Preset the dictionary
+else:
+    existing_dataset =  pd.read_pickle(output_file_path)
+    softmax_labels = range(10) # range(len(class_labels))
+    type_labels = range(args.classesToTake) #Index for each unique image
+
+    softmax_dict = existing_dataset['dictionary']
+    output_file_path = f"{output_dir_path}/{output_prefix}_{args.dataset_pickle}_{args.classesToTake}_unseen.pkl"
 
 # print(softmax_dict)
 
@@ -102,11 +121,12 @@ fraction = 1
 
 scales = np.arange(0.4, 60, 0.233)
 WINDOW_SIZE = 30
-img_size = (28,28)
+img_size = (64,64)
 
 obj_images_comp = []
 feature_data_comp = []
 label_data_comp = []
+secondary_label_comp = []
 files = files
 
 
@@ -130,6 +150,7 @@ for file in files:
     obj_images = []
     feature_data = []
     label_data = []
+    secondary_label_array = []
 
     # train_feature_array = []
     # train_label_array = []
@@ -157,100 +178,57 @@ for file in files:
             img_name =row['object_name']
             X = np.array(X.tolist(), dtype=np.float32)
 
-            # num_of_test_samples = int(len(range(X.shape[1] - WINDOW_SIZE + 1)) * splitPercent)
-            # test_sample_idx = np.random.choice(len(range(X.shape[1] - WINDOW_SIZE + 1)), size = num_of_test_samples, replace = False)
-            # i = 0
+            #Obtain secondary Class for specific Classification
+            img_path = os.path.join(dir_to_extract_images, img_name)
+            match = re.search(r'_(\d{2})[a-zA-Z]', img_name)
+            number = int(match.group(1))
+            secondary_class_label = number - 1 #Set it between 0 to 11
 
-            for key in list_of_keys:
-                w_data = hf.sliding_window_eeg(row[key])
-                img_path = os.path.join(dir_to_extract_images, img_name)
-                try:
-                    img = Image.open(img_path).resize(img_size)
-                    img_array = np.array(img)  # Normalize
-                except Exception as e:
-                    print(f"Error loading {img_path}: {e}")
+            if secondary_class_label in type_labels: #only take images from the sepcified range of classes
+                for key in list_of_keys:
+                    w_data = hf.sliding_window_eeg(row[key])
+                    img_path = os.path.join(dir_to_extract_images, img_name)
+                    try:
+                        img = Image.open(img_path).resize(img_size)
+                        img_array = np.array(img)  # Normalize
+                    except Exception as e:
+                        print(f"Error loading {img_path}: {e}")
 
-                obj_images.append(img_array)
-                feature_data.append(w_data)
-                label_data.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
-                
-                
-                # print(i)
-                # print(i not in test_sample_idx)
+                    obj_images.append(img_array)
+                    feature_data.append(w_data)
+                    label_data.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
+                    secondary_label_array.append(to_categorical(int(secondary_class_label),num_classes=len(type_labels)))
 
-                # if i not in test_sample_idx:
-                #     train_feature_array.append(w_data)
-                #     train_label_array.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
-                #     train_img_array.append(img_array)
-                
-                # else:
-                #     test_feature_array.append(w_data)
-                #     test_label_array.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
-                #     test_img_array.append(img_array)
                 
 
     
     obj_images_comp.append(np.array(obj_images))
     feature_data_comp.append(np.array(feature_data))
     label_data_comp.append(np.array(label_data))
-
-    # train_obj_images_comp.append(np.array(train_img_array))
-    # train_feature_data_comp.append(np.array(train_feature_array))
-    # train_label_data_comp.append(np.array(train_label_array))
-
-    # test_obj_images_comp.append(np.array(test_img_array))
-    # test_feature_data_comp.append(np.array(test_feature_array))
-    # test_label_data_comp.append(np.array(test_label_array))
+    secondary_label_comp.append(np.array(secondary_label_array))
 
 
 obj_images_comp = np.vstack(obj_images_comp)
 feature_data_comp = np.vstack(feature_data_comp)
 label_data_comp = np.vstack(label_data_comp)
-
-# train_obj_images_comp = np.vstack(train_obj_images_comp)
-# train_feature_data_comp = np.vstack(train_feature_data_comp)
-# train_label_data_comp = np.vstack(train_label_data_comp)
-
-# test_obj_images_comp = np.vstack(test_obj_images_comp)
-# test_feature_data_comp = np.vstack(test_feature_data_comp)
-# test_label_data_comp = np.vstack(test_label_data_comp)
-
-# x_train_eeg = np.array(train_feature_data_comp)
-# x_train_img = np.array(train_obj_images_comp)
-# y_train = np.array(train_label_data_comp).astype(np.uint8)
-
-# x_test_eeg = np.array(test_feature_data_comp)
-# x_test_img = np.array(test_obj_images_comp)
-# y_test = np.array(test_label_data_comp).astype(np.uint8)
-
-# #Shuffle the arrays
-# train_shuffled_indices = np.random.permutation(x_train_eeg.shape[0])
-# test_shuffled_indices = np.random.permutation(x_test_eeg.shape[0])
-
-# x_train_eeg = x_train_eeg[train_shuffled_indices]
-# x_train_img = x_train_img[train_shuffled_indices]
-# y_train = y_train[train_shuffled_indices]
-
-# x_test_eeg = x_test_eeg[test_shuffled_indices]
-# x_test_img = x_test_img[test_shuffled_indices]
-# y_test = y_test[test_shuffled_indices]
+secondary_label_comp = np.vstack(secondary_label_comp)
 
 
 
 train_data_1 = np.array(feature_data_comp)
 train_data_2 = np.array(obj_images_comp)
 labels = np.array(label_data_comp).astype(np.uint8)
+secondary_labels = np.array(secondary_label_comp).astype(np.uint8)
 
-x_train_eeg, x_test_eeg, x_train_img, x_test_img, y_train, y_test = train_test_split(train_data_1, train_data_2, labels, test_size=0.1, random_state=42)
+x_train_eeg, x_test_eeg, x_train_img, x_test_img, y_train, y_test, y_secondary_train, y_secondary_test = train_test_split(train_data_1, train_data_2, labels, secondary_labels, test_size=0.1, random_state=42)
 
-print(f"The dimensions of each dataset is x_train_eeg: {x_train_eeg.shape}, x_test_eeg: {x_test_eeg.shape}, x_train_img: {x_train_img.shape}, x_test_eeg: {x_test_img.shape} , y_test: {y_test.shape} , y_train: {y_train.shape} ")
+print(f"The dimensions of each dataset is x_train_eeg: {x_train_eeg.shape}, x_test_eeg: {x_test_eeg.shape}, x_train_img: {x_train_img.shape}, x_test_eeg: {x_test_img.shape} , y_test: {y_test.shape} , y_train: {y_train.shape} , y_secondary_train: {y_secondary_train.shape}, y_secondary_test: {y_secondary_test.shape}")
 
 print(f"*** Writing {output_file_path}")
 os.makedirs(output_dir_path, exist_ok=True)
-data_out = {'x_train_eeg':x_train_eeg, 'x_test_eeg':x_test_eeg, 'x_train_img':x_train_img, 'x_test_img':x_test_img, 'y_train':y_train,'y_test':y_test, 'dictionary':softmax_dict} #{'x_test':train_data,'y_test':labels}
+data_out = {'x_train_eeg':x_train_eeg, 'x_test_eeg':x_test_eeg, 'x_train_img':x_train_img, 'x_test_img':x_test_img, 'y_train':y_train, 'y_test':y_test, 'y_secondary_train':y_secondary_train ,'y_secondary_test':y_secondary_test , 'dictionary':softmax_dict} #{'x_test':train_data,'y_test':labels}
 with open(f"{output_file_path}", 'wb') as f:
     pickle.dump(data_out, f)
-
 # print(x_train[:10])
 # print(y_train.shape)
 

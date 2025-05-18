@@ -19,7 +19,7 @@ eeg_data = pickle.load(open("dataset/000thresh_AllStack_Transformer_dual_2.pkl",
 model = EEGViT_pretrained_512(eeg_data['y_train'].shape[1], eeg_data['y_secondary_train'].shape[1])
 
 # EEGEyeNet = MultiClassDataset('./dataset/000thresh_AllStack_Transformer_dual.pkl')
-save_path = "trained_models/Transformer_512"
+save_path = "trained_models/Transformer_512_dual"
 os.makedirs(save_path, exist_ok=True)
 batch_size = 64
 n_epoch = 15

@@ -3,20 +3,22 @@ from models.EEGViT import EEGViT_raw
 from models.ViTBase import ViTBase
 from models.ViTBase_pretrained import ViTBase_pretrained
 from helper_functions import split
-from dataset.EEGEyeNet import EEGEyeNetDataset
+from dataset.EEGEyeNet import EEGEyeNetDataset, singleClassDataset
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 import numpy as np
 import os
+import pickle
 
 '''
 models: EEGViT_pretrained; EEGViT_raw; ViTBase; ViTBase_pretrained
 '''
-model = EEGViT_pretrained()
-EEGEyeNet = EEGEyeNetDataset('./dataset/000thresh_AllStackTransformer_All.pkl')
-save_path = "trained_models/model1"
+eeg_data = pickle.load(open("dataset/000thresh_AllStack_Transformer_dual_2.pkl", 'rb'), encoding='bytes')
+model = EEGViT_pretrained(eeg_data['y_train'].shape[1])
+
+save_path = "trained_models/Transformer_512_single"
 os.makedirs(save_path, exist_ok=True)
 batch_size = 64
 n_epoch = 15
@@ -43,15 +45,15 @@ def train(model, optimizer, scheduler = None):
         scheduler: scheduling learning rate, used when finetuning pretrained models
     '''
     torch.cuda.empty_cache()
-    indexes = range(len(EEGEyeNet))
-    train_indices, val_indices, test_indices = split(indexes,0.7,0.15,0.15)  # indices for the training set
-    print(train_indices.shape)
+    # indexes = range(len(EEGEyeNet))
+    # train_indices, val_indices, test_indices = split(indexes,0.7,0.15,0.15)  # indices for the training set
+    # print(train_indices.shape)
     print('create dataloader...')
     criterion = nn.CrossEntropyLoss()
 
-    train = Subset(EEGEyeNet,indices=train_indices)
-    val = Subset(EEGEyeNet,indices=val_indices)
-    test = Subset(EEGEyeNet,indices=test_indices)
+    train =singleClassDataset(eeg_data['x_train_eeg'], eeg_data['y_train'], eeg_data['y_secondary_train'])
+    val = singleClassDataset(eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test'])
+    test = singleClassDataset(eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test'])
 
     train_loader = DataLoader(train, batch_size=batch_size)
     val_loader = DataLoader(val, batch_size=batch_size)

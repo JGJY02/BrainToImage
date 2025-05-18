@@ -1,6 +1,7 @@
 #ignore specific files
 *.png
 *.pkl
+*.zip
 
 #Ignore BTI_Objects file paths
 BTI_Objects/brain_to_image/
