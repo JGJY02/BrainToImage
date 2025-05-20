@@ -22,7 +22,6 @@ import argparse
 import pywt
 import matplotlib.pyplot as plt
 import cv2
-import re
 
 from PIL import Image
 
@@ -35,15 +34,15 @@ parser.add_argument('--input_dir', type=str, help="input directory", default = "
 parser.add_argument('--img_root_dir', type=str, help="image input directory", default = "raw_dataset/object_dataset",required=False)
 parser.add_argument('--mne_dir', type=str, help="mne directory", default = "mne_epoch",required=False)
 
-parser.add_argument('--dataset_pickle', type=str, help="sub-0x (where x 1-50)", default = "Transformer_dual" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="sub-0x (where x 1-50)", default = "All" , required=False)
 parser.add_argument('--car_filter_percent', type=float, help="ratio to filter baseline 0.934", default = 0.00, required=False)
 parser.add_argument('--filter_from_scratch', type = bool, help="Filter from scratch or load processed file", default = True)
 parser.add_argument('--classesToTake', type = int, help="Number of unique images to take for each class", default = 2)
 
-parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllStack", required=False)
-parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car",required=False)
+parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllSlidingCNN_dual_28", required=False)
+parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car/CNN_encoder",required=False)
 
-parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= True, required=False)
+parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= False, required=False)
 
 
 args = parser.parse_args()
@@ -53,6 +52,7 @@ if args.create_unseen:
     dataset_dir_path = f"{args.root_dir}/{args.input_dir}/unseen"
 else:
     dataset_dir_path = f"{args.root_dir}/{args.input_dir}"
+
 mne_dir_path = f"{args.root_dir}/{args.mne_dir}"
 
 dataset_file = f"filtered_{args.dataset_pickle}_eeg_data.pkl"
@@ -63,7 +63,7 @@ dataset_file_path = f"{dataset_dir_path}/{dataset_file}"
 mne_file_path = f"{mne_dir_path}/{mne_file}"
 
 
-output_dir_path = f"{args.root_dir}/{args.output_dir}/{args.dataset_pickle}/All"
+output_dir_path = f"{args.root_dir}/{args.output_dir}/{args.dataset_pickle}"
 
 if args.car_filter_percent == 0:
     car_filter_percent_string = "000"
@@ -72,13 +72,15 @@ else:
 car_file_path = f"{output_dir_path}/{args.dataset_pickle}_car_correlation_output.pkl"
 
 output_prefix = f"{car_filter_percent_string}{args.output_prefix}"
-output_file_path = f"{output_dir_path}/{output_prefix}_{args.dataset_pickle}_{args.classesToTake}_64.pkl"
+output_file_path = f"{output_dir_path}/{output_prefix}_{args.dataset_pickle}.pkl"
 
 
-# os.makedirs(output_dir_path, exist_ok=True)
+
 
 
 ## Car parameters
+
+
 print(f"*** Processing files at car ratio of {args.car_filter_percent}")
 
 
@@ -89,6 +91,7 @@ df_copy = pd.read_pickle(f"{dataset_dir_path}/{files[0]}") #filtered_{output_fil
 print(df_copy.info())
 list_of_keys = list(df_copy.keys())
 list_of_keys = list_of_keys[2:65]
+
 
 if args.create_unseen == False:
     class_labels = list(dict.fromkeys(df_copy['object_class']))
@@ -103,7 +106,7 @@ else:
     softmax_dict = existing_dataset['dictionary']
     output_file_path = f"{output_dir_path}/{output_prefix}_{args.dataset_pickle}_{args.classesToTake}_unseen.pkl"
 
-print(softmax_dict)
+# print(softmax_dict)
 
 # print(list_of_keys[:10])
 # for i in softmax_labels:
@@ -117,8 +120,8 @@ fraction = 1
 #sampled_df.info()
 
 scales = np.arange(0.4, 60, 0.233)
-WINDOW_SIZE = 30
-img_size = (64,64)
+WINDOW_SIZE = 32
+img_size = (28,28)
 
 obj_images_comp = []
 feature_data_comp = []
@@ -168,7 +171,6 @@ for file in files:
         class_df = sampled_df[sampled_df[label]== softmax_dict[class_label]]
 
         dir_to_extract_images = os.path.join(args.img_root_dir, softmax_dict[class_label])
-        
         for idx, row in class_df.iterrows():
             X = row[list_of_keys]
             img_name =row['object_name']
@@ -185,9 +187,6 @@ for file in files:
 
             if secondary_class_label in type_labels: #only take images from the sepcified range of classes
                 for i in range(X.shape[1] - WINDOW_SIZE + 1):
-
-    
-
                     w_data = X[:, i:i+WINDOW_SIZE]
                     # w_data = np.transpose(w_data, (1,0))
                     # print(w_data.dtype)
@@ -302,7 +301,6 @@ os.makedirs(output_dir_path, exist_ok=True)
 data_out = {'x_train_eeg':x_train_eeg, 'x_test_eeg':x_test_eeg, 'x_train_img':x_train_img, 'x_test_img':x_test_img, 'y_train':y_train, 'y_test':y_test, 'y_secondary_train':y_secondary_train ,'y_secondary_test':y_secondary_test , 'dictionary':softmax_dict} #{'x_test':train_data,'y_test':labels}
 with open(f"{output_file_path}", 'wb') as f:
     pickle.dump(data_out, f)
-
 # print(x_train[:10])
 # print(y_train.shape)
 

@@ -108,9 +108,37 @@ def convolutional_encoder_model_512_dual(channels, observations, num_classes, nu
 
     return full_model
 
-if __name__ == '__main__':
-    classifier = convolutional_encoder_model(9, 32, 10, verbose=True)
+def convolutional_encoder_model_128_dual(channels, observations, num_classes, num_types = 2, verbose=False):
 
+
+    model = Sequential([
+    BatchNormalization(input_shape=(channels, observations, 1), name="EEG_BN1"),
+    Conv2D(128, (1, 4), activation='relu', padding='same', name="EEG_series_Conv2D"),
+    Conv2D(64, (channels, 1), activation='relu',padding='same', name="EEG_channel_Conv2D"),
+    MaxPooling2D((1, 2), name="EEG_feature_pool1"),
+    Conv2D(64, (4, 25), activation='relu', data_format='channels_first', name="EEG_feature_Conv2D1"),
+    MaxPooling2D((1, 2), name="EEG_feature_pool2"),
+    Conv2D(128, (50, 2), activation='relu', name="EEG_feature_Conv2D2"),
+    Flatten(name="EEG_feature_flatten"),
+
+    BatchNormalization(name="EEG_feature_BN1"),
+    Dense(512, activation='relu', name="EEG_feature_FC512"),
+    Dropout(0.1, name="EEG_feature_drop1"),
+    Dense(256, activation='relu', name="EEG_feature_FC256"),
+    Dropout(0.1, name="EEG_feature_drop2")
+    ], name="EEG_Classifier")
+
+    encoder_inputs = Input(shape=(channels, observations, 1))
+    latent = model(encoder_inputs)
+    latent =     Dense(128, activation='relu', name="EEG_feature_FC128")(latent)  ## extract and use this as latent space for input to GAN
+    latent = Dropout(0.1, name="EEG_feature_drop3")(latent)
+    latent = BatchNormalization(name="EEG_feature_BN2")(latent)
+    classification_main = Dense(num_classes, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_Labels")(latent)
+    classification_type = Dense(num_types, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_type_Labels")(latent)
+    full_model = Model(inputs=encoder_inputs, outputs=[classification_main, classification_type])
+
+
+    return full_model
 def convolutional_encoder_model_expanded(channels, observations, num_classes, verbose=False):
     print(channels)
     print(observations)

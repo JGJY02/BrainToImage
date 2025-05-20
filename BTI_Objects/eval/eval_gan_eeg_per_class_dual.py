@@ -16,21 +16,13 @@ from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model, LSTM_Classifier
-from models.eeggan import (build_discriminator, build_EEGgan, build_generator,
+from models.eegclassifier import convolutional_encoder_model_128_dual
+from models.dual_models.eeggan import (build_discriminator, build_EEGgan, build_generator,
                            build_MoGCgenerator, build_MoGMgenerator,
                            combine_loss_metrics, sample_images, save_model)
 
 
-import config
-import tfutil
-import dataset
-import misc
 import tensorflow as tf
-
-import torch
-from models.EEGViT_pretrained_dual import (EEGViT_pretrained_dual)
-from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 ## new metrics
@@ -45,198 +37,105 @@ import torch
 from torchmetrics.image.inception import InceptionScore
 from torchvision import transforms
 
+import argparse
 
-tf.compat.v1.disable_v2_behavior()
-tf.compat.v1.disable_eager_execution()
-"""
-Title: EEG ACGAN Evaluations of models
 
-Purpose:
-    Testing design and build of EEG ACGAN and classifier, Functional blocks for training
-    ACGAN model. Call from training script.
+parser = argparse.ArgumentParser(description="Process some variables.")
+parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/CNN_encoder/All",required=False)
+parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
+parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "windowed" , required=False)
+parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals_dual_128", required=False)
+parser.add_argument('--classifier_path', type=str, help="Directory to output", default = "trained_models/classifiers/All/000thresh",required=False)
 
-Author: Tim Tanner
-Date: 01/07/2024
-Version: <Version number>
+parser.add_argument('--gan_path', type=str, help="Directory to output", default = "trained_models/GANs/CNN_GAN/AC/000thresh_Basic",required=False)
+parser.add_argument('--prefix', type=str, help="Basic MogM or MoGC", default = "Basic",required=False)
 
-Usage:
-    Run the script as is, uses the online object dataset to train the GAN
 
-Notes:
-    <Any additional notes or considerations>
+parser.add_argument('--output_path', type=str, help="Directory to output", default = "results/CNN_ACGAN_B_128_new",required=False)
 
-Examples:
-    <Example usage scenarios>
-"""
+args = parser.parse_args()
 
-def convert_tf_to_torch(np_images):
-    """
-    Converts TensorFlow images to PyTorch tensors.
-    
-    Args:
-    - tf_images (Tensor): TensorFlow images (N, H, W, C) in range [0,1] or [-1,1].
-    
-    Returns:
-    - PyTorch tensor (N, 3, H, W) normalized to [0,1].
-    """
-    # Convert TensorFlow tensor to NumPy
-    np_images = np.repeat(np_images, 3, axis=-1)  # Convert grayscale to RGB if needed
-    np_images = np.transpose(np_images, (0, 3, 1, 2))  # Change shape to (N, C, H, W)
-    
-    # Convert NumPy to PyTorch tensor
-    torch_images = torch.tensor(np_images, dtype=torch.uint8)
-    return torch_images
 
-os.environ.update(config.env)
-tfutil.init_tf(config.tf_config)
 #Jared Edition make sure we are back in the main directory to access all relevant files
 main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
 os.chdir(main_dir) #Jared Edition
 print(os.getcwd())
 eeg_latent_dim = 128
 class_labels = [0,1,2,3,4,5,6,7,8,9]
-type_labels = [0,1]
 valid_threshold = 0.5
 
 
-
 ## load the eeg training data
-dataset_dir = "2022Data"
-run_id = "934thresh_"
-eeg_dataset = f"{config.eeg_dataset_dir}/{config.eeg_dataset_pickle}"
+eeg_data_dir = args.root_dir
+data_file = args.dataset_pickle
+print(f"Reading data file {eeg_data_dir}/{data_file}")
+eeg_dataset = f"{eeg_data_dir}/{data_file}"
 print(f"Reading data file {eeg_dataset}")
 eeg_data = pickle.load(open(eeg_dataset, 'rb'), encoding='bytes')
 label_dictionary = eeg_data['dictionary']
 signals = eeg_data['x_test_eeg']
+(x_train, y_train, y_secondary_train) , (x_test, y_test, y_secondary_test) = (eeg_data['x_train_img'], eeg_data['y_train'], eeg_data['y_secondary_train']) , (eeg_data['x_test_img'], eeg_data['y_test'], eeg_data['y_secondary_test'])
+
+num_of_class_labels = y_train.shape[1]
+num_of_class_type_labels = y_secondary_train.shape[1]
 to_labels = np.argmax(eeg_data['y_test'],axis=1)  ## since eeg labels are in one-hot encoded format
 
-## load the object trainig data
-print(f" Loading Object images from {eeg_dataset}")
-(x_test, y_test) = (eeg_data['x_test_img'], eeg_data['y_test'])
-print(eeg_data['x_train_img'].shape)
+## #############
+# Build EEG Gan
+## #############
+prefix = args.prefix
+model_dir = f"{args.gan_path}/{prefix}_"
 
-print(x_test.shape)
+if prefix == "MoGC":
+    generator = build_MoGCgenerator(eeg_latent_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+elif prefix == "MoGM":
+    generator = build_MoGMgenerator(eeg_latent_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+elif prefix == "Basic":
+    generator = build_generator(eeg_latent_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
 
-for i in class_labels:
-    total = np.sum(to_labels == i)
-    print(f"For Class {i} we have {total} Instances")
-    # selected_indices = np.random.choice(cls_indices, 400, replace=False)  # Sample 400 indices
-    # X_selected.append(X[selected_indices])
-    # y_selected.append(y[selected_indices])
+#generator = build_MoGMgenerator(eeg_latent_dim,1,len(class_labels))
+#generator = build_MoGCgenerator(eeg_latent_dim,1,len(class_labels))
 
-#Mini batch size
-
-# ## #############
-# # Build EEG Gan
-# ## #############
-# prefix = "MoGM"
-# model_dir = f"./brain_to_Image/EEGgan/EEG_saved_model/{prefix}/{prefix}_"
-
-# if prefix == "MoGC":
-#     generator = build_MoGCgenerator(eeg_latent_dim,1,len(class_labels))
-# elif prefix == "MoGM":
-#     generator = build_MoGMgenerator(eeg_latent_dim,1,len(class_labels))
-# elif prefix == "Basic":
-#     generator = build_generator(eeg_latent_dim,1,len(class_labels))
-
-# #generator = build_MoGMgenerator(eeg_latent_dim,1,len(class_labels))
-# #generator = build_MoGCgenerator(eeg_latent_dim,1,len(class_labels))
-
-# generator.load_weights(f"{model_dir}EEGGan_generator_weights.h5")
-# discriminator = build_discriminator((28,28,1),len(class_labels))
-# combined = build_EEGgan(eeg_latent_dim,len(class_labels),generator,discriminator)
-# combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
-# resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
-# resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
-resume_run_id           = os.path.join("results", "083-pgan-objects_transformer_dual_2_512_64-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
-resume_snapshot         = 10627 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
-
-
-# #load generator to ekras model
-# print(generator)
-# layer_names = ['images_out']
-# generator_outputs = [generator.get_layer(layer_name).output for layer_name in layer_names]
-# generator_model = Model(inputs=generator.input, outputs=generator_outputs)
+generator.load_weights(f"{model_dir}EEGGan_generator_weights.h5")
+print(x_train.shape)
+discriminator = build_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
+combined = build_EEGgan(eeg_latent_dim,generator,discriminator)
+combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 
 ## #############
 # EEG Classifier/Encoder
 ## #############
-
-if config.TfOrTorch == "TF":
-    classifier_model_path = f"{config.eval_classifier_dir}/eeg_classifier_adm5_final.h5"
-    classifier = LSTM_Classifier(signals.shape[1], signals.shape[2], len(class_labels), 128)
-    classifier.load_weights(classifier_model_path)
-    layer_names = ['EEG_feature_BN2','EEG_Class_Labels']
-    encoder_outputs = [classifier.get_layer(layer_name).output for layer_name in layer_names]
-    encoder_model = Model(inputs=classifier.input, outputs=encoder_outputs)
-
-    dataset = tf.data.Dataset.from_tensor_slices(signals)
-    batch_size = 64
-    dataset = dataset.batch(batch_size)
-
-    encoded_latents = []
-    encoded_labels = []
-
-    for batch in tqdm(dataset):
-        encodedEEG, encodedLabel = encoder_model(batch, training=False)
-        encoded_latents.append(encodedEEG)
-        encoded_labels.append(encodedLabel)
-
-    # Combine results
-    encoded_latents = np.concatenate(encoded_latents, axis=0)
-    encoded_labels = np.concatenate(encoded_labels, axis=0)
-
-
-elif config.TfOrTorch == "Torch":
-    classifier_model_path = f"{config.eval_classifier_dir}/eeg_classifier_adm5_final.pth"
-
-    if torch.cuda.is_available():
-        gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
-        torch.cuda.set_device(gpu_id)
-        device = torch.device(f"cuda:{gpu_id}")
-    else:
-        device = torch.device("cpu")
-
-    encoder_model = EEGViT_pretrained_dual(len(class_labels), len(type_labels))
-    encoder_model.load_state_dict(torch.load(classifier_model_path, map_location=device))
-    encoder_model.eval() 
-
-    # signals = np.transpose(signals, (0,2,1))[:,np.newaxis,:,:]
-    signals = signals[:,np.newaxis,:,:]
-    print(signals.shape)
-    tensor_eeg  = torch.from_numpy(signals).to(device)
-    batch_size = 64  # You can tune this depending on your hardware
-    dataset = TensorDataset(tensor_eeg)
-    loader = DataLoader(dataset, batch_size=batch_size)
-
-    encoded_latents = []
-    encoded_labels = []
-    encoded_type_labels = []
-
-    with torch.no_grad():
-        for batch in tqdm(loader):
-            inputs = batch[0].to(device)  # move to GPU if needed
-            encodedLabel, encodedEEG, encodedTypeLabel = encoder_model(inputs)
-            encoded_latents.append(encodedEEG.cpu())  # move to CPU if you want to save memory
-            encoded_labels.append(encodedLabel.cpu())  # move to CPU if you want to save memory
-            encoded_type_labels.append(encodedTypeLabel.cpu())
-
-    encoded_latents = torch.cat(encoded_latents, dim=0)
-    encoded_labels = torch.cat(encoded_labels, dim=0)
-    encoded_type_labels = torch.cat(encoded_type_labels, dim=0)
-
-
-    encoded_latents = encoded_latents.numpy()
-    encoded_labels = encoded_labels.numpy()
-    encoded_type_labels = encoded_type_labels.numpy()
-
-else:
-    raise FileNotFoundError(f"{config.TfOrTorch} is not a valid implementation")
-  
-
+classifier = convolutional_encoder_model_128_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+classifier_model_path = f"{args.classifier_path}/{args.model_name}/eeg_classifier_adm5_final.h5"
+classifier.load_weights(classifier_model_path)
 ## #############################################################
 # Make prediction on random selected eeg from eeg_data['x_test']
 ## #############################################################
+layer_names = ['EEG_feature_BN2','EEG_Class_Labels','EEG_Class_type_Labels']
+encoder_outputs = [classifier.get_layer(layer_name).output for layer_name in layer_names]
+encoder_model = Model(inputs=classifier.input, outputs=encoder_outputs)
+
+dataset = tf.data.Dataset.from_tensor_slices(signals)
+batch_size = 64
+dataset = dataset.batch(batch_size)
+
+encoded_latents = []
+encoded_labels = []
+encoded_type_labels = []
+
+for batch in tqdm(dataset):
+    encodedEEG, encodedLabel, encodedTypeLabels = encoder_model(batch, training=False)
+    encoded_latents.append(encodedEEG)
+    encoded_labels.append(encodedLabel)
+    encoded_type_labels.append(encodedTypeLabels)
+
+# Combine results
+encoded_latents = np.concatenate(encoded_latents, axis=0)
+encoded_labels = np.concatenate(encoded_labels, axis=0)
+encoded_type_labels = np.concatenate(encoded_type_labels, axis =0)
+
+
 history = {}
 for i in class_labels:  ## outer loop per class
     print("Current class label is : ", i)
@@ -248,41 +147,36 @@ for i in class_labels:  ## outer loop per class
     encoded_eegs = encoded_latents[matching_indices[0]]
     conditioning_labels_raw = encoded_labels[matching_indices[0]]
     
-    conditioning_labels_type = encoded_type_labels[matching_indices[0]]
+    conditioning_labels_type_raw = encoded_type_labels[matching_indices[0]]
     true_conditioning_labels_type = eeg_data['y_secondary_test'][matching_indices[0]]
 
-    with tf.Graph().as_default(), tfutil.create_session(config.tf_config).as_default():
-        with tf.compat.v1.device('/gpu:0'):
-            network_pkl = misc.locate_network_pkl(resume_run_id, resume_snapshot)
-            print('Loading networks from "%s"...' % network_pkl)
-            generator, discriminator, Gs = misc.load_pkl(network_pkl)
-
         
-        # minibatch_size = np.clip(8192 // encoded_eegs.shape[1], 4, 256)
-        minibatch_size = 4
-        # print("The encoded eegs shape is :", encoded_eegs.shape)
-        # print("The calculated minibatch size is :", minibatch_size)
-        generated_samples = Gs.run(encoded_eegs, conditioning_labels_raw, conditioning_labels_type, minibatch_size = minibatch_size)
+    # minibatch_size = np.clip(8192 // encoded_eegs.shape[1], 4, 256)
+    minibatch_size = 4
+    # print("The encoded eegs shape is :", encoded_eegs.shape)
+    # print("The calculated minibatch size is :", minibatch_size)
+    conditioning_labels_argmax = np.argmax(conditioning_labels_raw, axis=1)
+    conditioning_labels_type_argmax = np.argmax(conditioning_labels_type_raw, axis = 1)
 
-        
+    generated_samples = generator.predict([encoded_eegs, conditioning_labels_argmax, conditioning_labels_type_argmax],batch_size=32)
+    ## predict on GAN
+    validitys, labels_pred, labels_type_pred = combined.predict([encoded_eegs, conditioning_labels_argmax, conditioning_labels_type_argmax],batch_size=32)
 
-        validitys, labels_pred, validitys_type, labels_type_pred  = discriminator.run(generated_samples, minibatch_size = minibatch_size)
+        ## predict on GAN
+    # true_images = np.pad(true_images, [(0,0), (2,2), (2,2), (0,0)], 'constant', constant_values=0) #pad images as progressiveGAN did so as well
+    # true_images_test = np.transpose(true_images, (0, 3, 1, 2)) 
+    true_images_test = (true_images/127.5) - 1
 
-            ## predict on GAN
-        # true_images = np.pad(true_images, [(0,0), (2,2), (2,2), (0,0)], 'constant', constant_values=0) #pad images as progressiveGAN did so as well
-        true_images_test = np.transpose(true_images, (0, 3, 1, 2)) 
-        true_images_test = (true_images_test/127.5) - 1
+    validitys_true, labels_true_pred, labels_type_true_pred  = discriminator.predict([true_images_test], batch_size=32)
+    # generated_samples = np.transpose(generated_samples, (0, 2, 3, 1))
 
-        validitys_true, labels_true_pred, validitys_type_true, labels_type_true_pred  = discriminator.run(true_images_test, minibatch_size = minibatch_size)
-        generated_samples = np.transpose(generated_samples, (0, 2, 3, 1))
+    generated_samples = generated_samples*127.5 + 127.5
+    generated_samples = np.clip(generated_samples,0,255)
+    generated_samples = generated_samples.astype(np.uint8)
 
-        generated_samples = generated_samples*127.5 + 127.5
-        generated_samples = np.clip(generated_samples,0,255)
-        generated_samples = generated_samples.astype(np.uint8)
-
-        # print("labels predicted : ", labels_pred)
-        # print("labels conditioning : ", conditioning_labels_raw)
-        # print("True label : ", labels_true_pred)
+    # print("labels predicted : ", labels_pred)
+    # print("labels conditioning : ", conditioning_labels_raw)
+    # print("True label : ", labels_true_pred)
 
 
 
@@ -298,11 +192,8 @@ for i in class_labels:  ## outer loop per class
 
     ## collate results
     history[i] = {'generated':generated_samples,'true':true_images,'valid':validitys,'predicted':labels_pred,'conditioning':conditioning_labels_raw, 'true_labels':labels, \
-        'predicted_type': labels_type_pred,'conditioning_type': conditioning_labels_type, 'true_type': true_conditioning_labels_type, \
+        'predicted_type': labels_type_pred,'conditioning_type': conditioning_labels_type_raw, 'true_type': true_conditioning_labels_type, \
         'labels_true_pred' : labels_true_pred, 'labels_type_true_pred': labels_type_true_pred}
-
-
-
 
 def save_imgs(images, name, class_label, conditioning_labels, conditioning_type,  predicted_labels, pred_type, real_label, real_type, output_dir, label_dictionary):
     # Set up the grid dimensions (10x10)
@@ -476,7 +367,7 @@ list_of_labels = []
 text_to_save = []
 
 evaluation ={}
-output_dir = config.evalOutputDir
+output_dir = args.output_path
 
 # Transform image for inception
 transform = transforms.Compose([
@@ -490,7 +381,6 @@ for i in class_labels:
 
     classes_added = []
     types_added = []
-
 
     ssim_scores = []
     rmse_scores = []
@@ -539,7 +429,6 @@ for i in class_labels:
     save_imgs(class_data['generated'], "Generated", i ,conditioning_labels_array, conditioning_labels_type_array, \
         predicted_labels_array, pred_labels_type_array, \
         true_labels_array, true_labels_type_array, output_dir, label_dictionary)
-    
     temp_hold_imgs = []
     sampling_imgs_taken = False
     last = 0
@@ -552,9 +441,14 @@ for i in class_labels:
 
         y_true = class_data['true'][j][:,:,:]
         y_pred = class_data['generated'][j][:,:,:]
-
         all_true_images.append(y_true)
+
         all_generated_images.append(y_pred)
+
+        # print(y_true.shape)
+        # print(y_pred.shape)
+        # print(y_pred)
+
 
         if i not in classes_added:
             # print("Hello")
@@ -565,22 +459,14 @@ for i in class_labels:
                 last += 1
 
                 # print("Now adding images")
-                # print(y_true.dtype)
                 temp_hold_imgs.append([y_true, y_pred])
-                # print(temp_hold_imgs[0][0].dtype)
                 types_added.append(j)
             if len(types_added) == eeg_data['y_secondary_test'].shape[1] and not sampling_imgs_taken:
 
                 classes_added.append(i)
                 comparison_imgs.append(temp_hold_imgs)
                 # print(len(temp_hold_imgs))
-                sampling_imgs_taken = True
-                
-        # print(y_true.shape)
-        # print(y_pred.shape)
-        # print(y_pred)
-
-
+                sampling_imgs_taken = True                          
 
         #SSIM score
         ssim_value = compute_ssim(y_true, y_pred)
@@ -702,14 +588,13 @@ mean_text_to_print = f"Average Class Results: mean ssim: {mean_evaluation['avera
 print(mean_text_to_print)
 text_to_save.append(mean_text_to_print)
 
-
-save_imgs_comparison(comparison_imgs, output_dir)
 # stacked_images = np.stack(sample_img_per_class, axis=0)
 # stacked_labels = np.stack(list_of_labels, axis = 0)
 
 # stacked_images = stacked_images.reshape(-1, 28, 28, 3)
 # stacked_labels = stacked_labels.reshape(-1)
 # save_imgs(stacked_images, "Sampling image of each class", "all" ,stacked_labels, stacked_labels, output_dir)
+save_imgs_comparison(comparison_imgs, output_dir)
 
 with open(f"{output_dir}/results.txt", "w") as file:
     file.write("\n".join(text_to_save) + "\n")

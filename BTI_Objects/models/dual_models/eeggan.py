@@ -135,17 +135,16 @@ def build_generator(latent_dim,num_channels,num_classes, num_classes_type,activa
     label_type = Input(shape=(1,), dtype='int32', name="Gen_Input_label_type")
 
     label_embedding = Flatten(name="Gen_Flatten")(Embedding(num_classes, latent_dim, name="Gen_Embed")(label))
-    label_embedding_type = Flatten(name="Gen_Flatten")(Embedding(num_classes_type, latent_dim, name="Gen_type_Embed")(label_type))
+    label_embedding_type = Flatten(name="Gen_type_Flatten")(Embedding(num_classes_type, latent_dim, name="Gen_type_Embed")(label_type))
 
 
     model_input = multiply([latent_space, label_embedding],name="Gen_Mul")
-    model_input = multiply([model_input, label_embedding_type],name="Gen_Mul_Type")
+    model_input_comp = multiply([model_input, label_embedding_type],name="Gen_Mul_Type")
 
     #model_input = concatenate([mog_layer, label_embedding],name="Gen_Mul")
-    gen_img = model(model_input)
+    gen_img = model(model_input_comp)
 
-    final_model = Model([latent_space, label], gen_img, name="Generator")
-
+    final_model = Model([latent_space, label, label_type], gen_img, name="Generator")
     if verbose:
         #model.summary()
         final_model.summary(show_trainable=True,expand_nested=True)
@@ -181,8 +180,9 @@ def build_discriminator(img_shape,num_classes, num_classes_type,leaky_alpha=0.2,
 
     # Determine validity and label of the image
     validity = Dense(1, activation="sigmoid", name="Dis_Validity")(features)
+    
     label = Dense(num_classes, activation="softmax", name="Dis_Class_Label")(features)
-    label_type = Dense(num_classes_type, activation="softmax", name="Dis_Class_Label")(features)
+    label_type = Dense(num_classes_type, activation="softmax", name="Dis_Class_type_Label")(features)
 
     final_model = Model(input_img, [validity, label, label_type], name="Discriminator")
 
@@ -192,15 +192,17 @@ def build_discriminator(img_shape,num_classes, num_classes_type,leaky_alpha=0.2,
     return final_model
 
 # Complete GAN model
-def build_EEGgan(latent_dim, num_classes, gen, dis, verbose=False):
+def build_EEGgan(latent_dim, gen, dis, verbose=False):
 
     latent_space = Input(shape=(latent_dim,), name="EEGGAN_Input_space")
     label = Input(shape=(1,), dtype=np.float32, name="EEGGAN_Input_label")
-    generator_image = gen(inputs=[latent_space, label])
+    label_type = Input(shape=(1,), dtype=np.float32, name="EEGGAN_Input_label_type")
+
+    generator_image = gen(inputs=[latent_space, label, label_type])
     dis.trainable = False
     #gen_img = Input(shape=(28,28,1), name="EEGGAN_Gen_Image")
-    validity, class_label, label_type = dis(inputs=[generator_image])
-    final_model = Model(inputs=[latent_space,label], outputs=[validity,class_label, label_type] , name="EEGGAN")
+    validity, class_label, class_label_type = dis(inputs=[generator_image])
+    final_model = Model(inputs=[latent_space,label, label_type], outputs=[validity,class_label, class_label_type] , name="EEGGAN")
 
     if verbose:
         final_model.summary(show_trainable=True,expand_nested=True)

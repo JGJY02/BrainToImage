@@ -39,7 +39,7 @@ parser.add_argument('--car_filter_percent', type=float, help="ratio to filter ba
 parser.add_argument('--filter_from_scratch', type = bool, help="Filter from scratch or load processed file", default = True)
 parser.add_argument('--classesToTake', type = int, help="Number of unique images to take for each class", default = 2)
 
-parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllSlidingCNN_dual", required=False)
+parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllSlidingCNN_dual_28_ori", required=False)
 parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car/CNN_encoder",required=False)
 
 parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= False, required=False)
@@ -121,7 +121,7 @@ fraction = 1
 
 scales = np.arange(0.4, 60, 0.233)
 WINDOW_SIZE = 30
-img_size = (64,64)
+img_size = (28,28)
 
 obj_images_comp = []
 feature_data_comp = []
