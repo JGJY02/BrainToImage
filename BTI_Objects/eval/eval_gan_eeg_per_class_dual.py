@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model_128_dual
+from models.eegclassifier import convolutional_encoder_model_512_dual
 from models.dual_models.eeggan import (build_discriminator, build_EEGgan, build_generator,
                            build_MoGCgenerator, build_MoGMgenerator,
                            combine_loss_metrics, sample_images, save_model)
@@ -43,16 +43,16 @@ import argparse
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/CNN_encoder/All",required=False)
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_ori_All.pkl" , required=False)
 parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "windowed" , required=False)
-parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals_dual_128", required=False)
+parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals_dual_512_ori", required=False)
 parser.add_argument('--classifier_path', type=str, help="Directory to output", default = "trained_models/classifiers/All/000thresh",required=False)
 
-parser.add_argument('--gan_path', type=str, help="Directory to output", default = "trained_models/GANs/CNN_GAN/AC/000thresh_Basic",required=False)
+parser.add_argument('--gan_path', type=str, help="Directory to output", default = "trained_models/GANs/CNN_GAN/AC/000thresh_Basic_512",required=False)
 parser.add_argument('--prefix', type=str, help="Basic MogM or MoGC", default = "Basic",required=False)
 
 
-parser.add_argument('--output_path', type=str, help="Directory to output", default = "results/CNN_ACGAN_B_128_new",required=False)
+parser.add_argument('--output_path', type=str, help="Directory to output", default = "results/CNN_ACGAN_B_512_ori",required=False)
 
 args = parser.parse_args()
 
@@ -61,7 +61,7 @@ args = parser.parse_args()
 main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
 os.chdir(main_dir) #Jared Edition
 print(os.getcwd())
-eeg_latent_dim = 128
+eeg_latent_dim = 512
 class_labels = [0,1,2,3,4,5,6,7,8,9]
 valid_threshold = 0.5
 
@@ -106,7 +106,7 @@ combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 ## #############
 # EEG Classifier/Encoder
 ## #############
-classifier = convolutional_encoder_model_128_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+classifier = convolutional_encoder_model_512_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
 classifier_model_path = f"{args.classifier_path}/{args.model_name}/eeg_classifier_adm5_final.h5"
 classifier.load_weights(classifier_model_path)
 ## #############################################################

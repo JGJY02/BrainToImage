@@ -13,7 +13,7 @@ from keras.optimizers import Adam
 from keras.utils import to_categorical
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model_128_dual, LSTM_Classifier
+from models.eegclassifier import convolutional_encoder_model_512_dual, LSTM_Classifier
 from models.dual_models.eeggan import (build_discriminator, build_EEGgan, build_MoGCgenerator, build_MoGMgenerator, build_generator)
 
 from models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
@@ -50,7 +50,7 @@ parser.add_argument('--output_dir', type=str, help="Directory to output", defaul
 
 parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
 parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "CNN")
-parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "CNN_all_stacked_signals_dual_128_ori")
+parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "CNN_all_stacked_signals_dual_512_ori")
 
 parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "CNN_encoder")
 
@@ -70,7 +70,7 @@ generator_type = args.model_type #C for concatenation M for Multiplication B for
 
 
 class_labels = [0,1,2,3,4,5,6,7,8,9]
-eeg_encoding_dim = 128
+eeg_encoding_dim = 512
 
 
 
@@ -88,7 +88,7 @@ run_id = args.dataset_pickle[:indexes[0]] #"90thresh_"# "example_data_" #Extract
 classifier_id = f"{run_id}_{args.epochs}_{args.classifierName}_{model_type}"
 
 #Output save path name
-model_save_path = f"{args.output_dir}/{args.classifierType}_GAN/{args.GAN_type}/{run_id}_{model_type}_Ori"
+model_save_path = f"{args.output_dir}/{args.classifierType}_GAN/{args.GAN_type}/{run_id}_{model_type}_512"
 model_save_path_imgs = f"{model_save_path}/imgs"
 
 #Generate classifier path name
@@ -204,7 +204,7 @@ if args.ClassifierImplementation == "TF":
 
     elif args.classifierType == "CNN":
         print(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2])
-        classifier = convolutional_encoder_model_128_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+        classifier = convolutional_encoder_model_512_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
 
     classifier.load_weights(classifier_model_path)
     layer_names = ['EEG_feature_BN2','EEG_Class_Labels', 'EEG_Class_type_Labels']

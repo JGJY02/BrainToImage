@@ -95,12 +95,13 @@ def convolutional_encoder_model_512_dual(channels, observations, num_classes, nu
     Conv2D(128, (50, 2), activation='relu', name="EEG_feature_Conv2D2"),
     Flatten(name="EEG_feature_flatten"),
 
-    BatchNormalization(name="EEG_feature_BN1"),
-    Dense(512, activation='relu', name="EEG_feature_FC512")
     ], name="EEG_Classifier")
 
     encoder_inputs = Input(shape=(channels, observations, 1))
     latent = model(encoder_inputs)
+    latent = Dense(512, activation='relu', name="EEG_feature_FC512")(latent)  ## extract and use this as latent space for input to GAN
+    latent = Dropout(0.1, name="EEG_feature_drop3")(latent)
+    latent = BatchNormalization(name="EEG_feature_BN2")(latent)
     classification_main = Dense(num_classes, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_Labels")(latent)
     classification_type = Dense(num_types, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_type_Labels")(latent)
     full_model = Model(inputs=encoder_inputs, outputs=[classification_main, classification_type])
