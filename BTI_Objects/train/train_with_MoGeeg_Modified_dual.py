@@ -13,11 +13,11 @@ from keras.optimizers import Adam
 from keras.utils import to_categorical
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model_512_dual, LSTM_Classifier
+from models.eegclassifier import convolutional_encoder_model_512_dual, LSTM_Classifier_dual_512
 from models.dual_models.eeggan import (build_discriminator, build_EEGgan, build_MoGCgenerator, build_MoGMgenerator, build_generator)
 
-from models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
-from models.capsgan import (build_caps_discriminator, build_capsGAN, build_dccaps_generator)
+from models.dual_models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
+from models.dual_models.capsgan import (build_caps_discriminator, build_capsGAN, build_dccaps_generator)
 from models.EEGViT_pretrained import (EEGViT_pretrained)
 
 from models.model_utils import (sample_images_eeg, save_model, combine_loss_metrics)
@@ -38,21 +38,21 @@ os.chdir(main_dir) #Jared Edition
 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--root_dir', type=str, help="Directory to the dataset", default = "processed_dataset/filter_mne_car",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_dual_All_2.pkl / CNN 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackTransformer_All.pkl", default = "000thresh_AllSlidingCNN_dual_28_ori_All.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_dual_All_2.pkl / CNN 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackTransformer_All.pkl", default = "000thresh_AllStackLstm_64_dual_All_2.pkl" , required=False)
 
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
 
 parser.add_argument('--classifier_path', type=str, help="directory to the classifier", default= "trained_models/classifiers", required=False)
 parser.add_argument('--classifier_model', type=str, help="Name of the model", default= "eeg_classifier_adm5", required=False)
-parser.add_argument('--GAN_type', type=str, help="DC or AC or Caps", default = "AC",required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "CAPS",required=False)
 parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/GANs",required=False)
 
 parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
-parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "CNN")
-parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "CNN_all_stacked_signals_dual_512_ori")
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "LSTM")
+parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "LSTM_all_stacked_signals_dual_512_64_ori")
 
-parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "CNN_encoder")
+parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "LSTM_encoder")
 
 
 parser.add_argument('--batch_size', type=int, help="Batch size", default = 32,required=False)
@@ -106,6 +106,7 @@ elif args.ClassifierImplementation == "Torch":
 else:
     raise FileNotFoundError(f"{args.ClassifierImplementation} is not a valid implementation")
 
+print("Taking Classifier from : ", classifier_model_path)
 
 # Adversarial ground truths
 valid = np.ones((batch_size, 1))
@@ -158,16 +159,16 @@ if args.GAN_type == "AC":
 
     generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
 elif args.GAN_type == "DC":
-    discriminator = build_dc_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),len(class_labels))
+    discriminator = build_dc_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
     discriminator.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accuracy'])
-    generator = build_dc_generator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
+    generator = build_dc_generator(eeg_encoding_dim, x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
     generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
 
 elif args.GAN_type == "CAPS":
 
-    discriminator, _, _ = build_caps_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),len(class_labels))
+    discriminator, _, _ = build_caps_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
     discriminator.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accuracy'])
-    generator = build_dccaps_generator(eeg_encoding_dim,x_train.shape[3],len(class_labels))
+    generator = build_dccaps_generator(eeg_encoding_dim, x_train.shape[3], num_of_class_labels, num_of_class_type_labels)
     generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
 
 # prime generator.
@@ -182,7 +183,7 @@ discriminator.trainable = False
 
 if args.GAN_type == "CAPS":
     masking_label = Input(shape=(len(class_labels),))
-    valid_class, target_label = discriminator([img, masking_label])
+    valid_class, target_label, target_label_type = discriminator([img, masking_label])
     combined = build_capsGAN(eeg_encoding_dim, len(class_labels), generator, discriminator)
 else:
     valid_class, target_label, target_label_type = discriminator(img)
@@ -200,7 +201,7 @@ combined.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accurac
 if args.ClassifierImplementation == "TF":
 
     if args.classifierType == "LSTM":
-        classifier = LSTM_Classifier(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+        classifier = LSTM_Classifier_dual_512(eeg_data['x_train_eeg'].shape[1],  eeg_data['x_train_eeg'].shape[2], 512, num_of_class_labels, num_of_class_type_labels)
 
     elif args.classifierType == "CNN":
         print(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2])
@@ -227,6 +228,7 @@ print(f"** Classifier used: {classifier_model_path}")
 ## Encode all signals first before training
 if args.ClassifierImplementation == "TF":
     encoded_eeg_all, encoded_labels_all, encoded_labels_type_all = encoder_model.predict(eeg_data['x_train_eeg'])
+    
     predicted_labels = np.argmax(encoded_labels_all,axis=1)
     predicted_labels_type = np.argmax(encoded_labels_type_all,axis=1)
 
@@ -297,9 +299,9 @@ for epoch in range(epochs+1):
     # {'loss': 3.244841694831848, 'Validity_loss': 0.8591426908969879, 'Class_Label_loss': 2.3856990337371826, 'Validity_accuracy': 0.421875, 'Class_Label_accuracy': 0.09375}
     if args.GAN_type == "CAPS":
         d_loss_real = discriminator.train_on_batch([imgs, y_train[sample_indexs]], [valid, sampled_labels, sampled_labels_type], return_dict=True)
-        d_loss_fake = discriminator.train_on_batch([gen_imgs, encoded_labels], [fake, encoded_labels, encoded_labels_type], return_dict=True)
+        d_loss_fake = discriminator.train_on_batch([gen_imgs, encoded_labels_all[sample_indexs]], [fake, encoded_labels, encoded_labels_type], return_dict=True)
         d_loss = combine_loss_metrics(d_loss_real, d_loss_fake)
-        g_loss = combined.train_on_batch([encoded_eeg, predicted_labels, encoded_labels], [valid, predicted_labels], return_dict=True)
+        g_loss = combined.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type, encoded_labels_all[sample_indexs]], [valid, encoded_labels, encoded_labels_type], return_dict=True)
 
     else:
         d_loss_real = discriminator.train_on_batch(imgs, [valid, sampled_labels, sampled_labels_type], return_dict=True)

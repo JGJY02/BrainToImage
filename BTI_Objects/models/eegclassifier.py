@@ -304,13 +304,16 @@ def LSTM_Classifier_dual_512(timesteps, features, latent_size,  num_classes, num
 
     model = Sequential([
     
-    LSTM(latent_size*2, activation='tanh', return_sequences=True, input_shape=(timesteps, features) ,name = "EEG_feature_LSTM_1"),
-    LSTM(latent_size, activation='tanh', return_sequences=False ,name = "EEG_feature_LSTM_2"),
-    BatchNormalization(name="EEG_feature_BN2")
+    LSTM(latent_size, activation='tanh', return_sequences=True, input_shape=(timesteps, features) ,name = "EEG_feature_LSTM_1"),
+    LSTM(latent_size, activation='tanh', return_sequences=True ,name = "EEG_feature_LSTM_2"),
+    LSTM(latent_size, activation='tanh', return_sequences=True ,name = "EEG_feature_LSTM_3"),    
+    LSTM(latent_size, activation='tanh', return_sequences=False ,name = "EEG_feature_LSTM_4")    
+    
     ], name="classifier")
 
     encoder_inputs = Input(shape=(timesteps, features))
     latent = model(encoder_inputs)
+    latent = BatchNormalization(name="EEG_feature_BN2")(latent)
     classification_main = Dense(num_classes, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_Labels")(latent)
     classification_type = Dense(num_types, activation='softmax',kernel_regularizer=l2(0.015), name="EEG_Class_type_Labels")(latent)
     full_model = Model(inputs=encoder_inputs, outputs=[classification_main, classification_type])

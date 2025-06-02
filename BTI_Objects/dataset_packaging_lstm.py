@@ -41,7 +41,7 @@ parser.add_argument('--car_filter_percent', type=float, help="ratio to filter ba
 parser.add_argument('--filter_from_scratch', type = bool, help="Filter from scratch or load processed file", default = True)
 parser.add_argument('--classesToTake', type = int, help="Number of unique images to take for each class", default = 2)
 
-parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllStackLstm_dual", required=False)
+parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllStackLstm_64_dual", required=False)
 parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car/LSTM_encoder",required=False)
 
 parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= False, required=False)
@@ -87,7 +87,7 @@ files = [f for f in os.listdir(dataset_dir_path) if os.path.isfile(os.path.join(
 df_copy = pd.read_pickle(f"{dataset_dir_path}/{files[0]}") #filtered_{output_file}")
 print(df_copy.info())
 list_of_keys = list(df_copy.keys())
-list_of_keys = list_of_keys[2:65]
+list_of_keys = list_of_keys[2:66]
 
 if args.create_unseen == False:
     class_labels = list(dict.fromkeys(df_copy['object_class']))

@@ -16,11 +16,12 @@ from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model_512_dual
+from models.eegclassifier import convolutional_encoder_model_512_dual, LSTM_Classifier_dual_512
 from models.dual_models.eeggan import (build_discriminator, build_EEGgan, build_generator,
                            build_MoGCgenerator, build_MoGMgenerator,
                            combine_loss_metrics, sample_images, save_model)
-
+from models.dual_models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
+from models.dual_models.capsgan import (build_caps_discriminator, build_capsGAN, build_dccaps_generator)
 
 import tensorflow as tf
 from tqdm import tqdm
@@ -41,18 +42,24 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description="Process some variables.")
-parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/CNN_encoder/All",required=False)
+parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/LSTM_encoder/All",required=False)
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_ori_All.pkl" , required=False)
-parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "windowed" , required=False)
-parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals_dual_512_ori", required=False)
-parser.add_argument('--classifier_path', type=str, help="Directory to output", default = "trained_models/classifiers/All/000thresh",required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllStackLstm_64_dual_All_2.pkl" , required=False)
+parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "LSTM" , required=False)
+parser.add_argument('--model_name', type=str, help="Name of the model", default= "LSTM_all_stacked_signals_dual_512_64_ori", required=False)
+parser.add_argument('--classifier_path', type=str, help="Directory to output", default = "trained_models/classifiers",required=False)
 
-parser.add_argument('--gan_path', type=str, help="Directory to output", default = "trained_models/GANs/CNN_GAN/AC/000thresh_Basic_512",required=False)
-parser.add_argument('--prefix', type=str, help="Basic MogM or MoGC", default = "Basic",required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "CAPS",required=False)
+parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
+parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "LSTM")
+parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "LSTM_all_stacked_signals_dual_512_64_ori")
+
+parser.add_argument('--gan_path', type=str, help="Directory to GAN File", default = "trained_models/GANs/LSTM_GAN/CAPS/000thresh_CAPS_512",required=False)
+parser.add_argument('--prefix', type=str, help="Basic MogM or MoGC", default = "CAPS",required=False)
 
 
-parser.add_argument('--output_path', type=str, help="Directory to output", default = "results/CNN_ACGAN_B_512_ori",required=False)
+parser.add_argument('--output_path', type=str, help="Directory to output", default = "results/LSTM_CAPSGAN_512_ori",required=False)
 
 args = parser.parse_args()
 
@@ -61,7 +68,7 @@ args = parser.parse_args()
 main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
 os.chdir(main_dir) #Jared Edition
 print(os.getcwd())
-eeg_latent_dim = 512
+eeg_encoding_dim = 512
 class_labels = [0,1,2,3,4,5,6,7,8,9]
 valid_threshold = 0.5
 
@@ -69,6 +76,12 @@ valid_threshold = 0.5
 ## load the eeg training data
 eeg_data_dir = args.root_dir
 data_file = args.dataset_pickle
+generator_type = args.model_type #C for concatenation M for Multiplication B for Basic
+
+indexes = [i for i, char in enumerate(args.dataset_pickle) if char == '_']
+run_id = args.dataset_pickle[:indexes[0]] #"90thresh_"# "example_data_" #Extract the prefix to be used as the run id
+
+
 print(f"Reading data file {eeg_data_dir}/{data_file}")
 eeg_dataset = f"{eeg_data_dir}/{data_file}"
 print(f"Reading data file {eeg_dataset}")
@@ -84,31 +97,97 @@ to_labels = np.argmax(eeg_data['y_test'],axis=1)  ## since eeg labels are in one
 ## #############
 # Build EEG Gan
 ## #############
+discrim_losses = ['binary_crossentropy', 'sparse_categorical_crossentropy', 'sparse_categorical_crossentropy']  #sparse_
+gen_losses = ['categorical_crossentropy']
+# build discriminator sub model
+print("Shape of training is")
+print((x_train.shape[1],x_train.shape[2],x_train.shape[3]))
+
+print(f"** Training model for type: {args.GAN_type}")
+
 prefix = args.prefix
 model_dir = f"{args.gan_path}/{prefix}_"
+if args.GAN_type == "AC":
+    print(f"*** Training sub model for type: {args.model_type}")
 
-if prefix == "MoGC":
-    generator = build_MoGCgenerator(eeg_latent_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
-elif prefix == "MoGM":
-    generator = build_MoGMgenerator(eeg_latent_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
-elif prefix == "Basic":
-    generator = build_generator(eeg_latent_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+    discriminator = build_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
+    # build generator sub model
 
-#generator = build_MoGMgenerator(eeg_latent_dim,1,len(class_labels))
-#generator = build_MoGCgenerator(eeg_latent_dim,1,len(class_labels))
+    if generator_type == "C":
+        generator = build_MoGCgenerator(eeg_encoding_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+    elif generator_type == "M":
+        generator = build_MoGMgenerator(eeg_encoding_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+    elif generator_type == "B":
+        generator = build_generator(eeg_encoding_dim,    x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+
+elif args.GAN_type == "DC":
+    discriminator = build_dc_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
+    generator = build_dc_generator(eeg_encoding_dim, x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+
+elif args.GAN_type == "CAPS":
+
+    _, discriminator, _ = build_caps_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
+    generator = build_dccaps_generator(eeg_encoding_dim, x_train.shape[3], num_of_class_labels, num_of_class_type_labels)
+
+
+# Create combined EEGGan model.
 
 generator.load_weights(f"{model_dir}EEGGan_generator_weights.h5")
 print(x_train.shape)
-discriminator = build_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
-combined = build_EEGgan(eeg_latent_dim,generator,discriminator)
+combined = build_EEGgan(eeg_encoding_dim,generator,discriminator)
 combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 
+
+
+
 ## #############
-# EEG Classifier/Encoder
+# EEG Classifier
 ## #############
-classifier = convolutional_encoder_model_512_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
-classifier_model_path = f"{args.classifier_path}/{args.model_name}/eeg_classifier_adm5_final.h5"
-classifier.load_weights(classifier_model_path)
+
+#Generate classifier path name
+if args.ClassifierImplementation == "TF":
+    classifier_model_path = f"{args.classifier_path}/{args.input_dir}/{run_id}/{args.classifierName}/eeg_classifier_adm5_final.h5"
+elif args.ClassifierImplementation == "Torch":
+    classifier_model_path = f"{args.classifier_path}/{args.input_dir}/{run_id}/{args.classifierName}/eeg_classifier_adm5_final.pth"
+    if torch.cuda.is_available():
+        gpu_id = 0  # Change this to the desired GPU ID if you have multiple GPUs
+        torch.cuda.set_device(gpu_id)
+        device = torch.device(f"cuda:{gpu_id}")
+    else:
+        device = torch.device("cpu")
+
+else:
+    raise FileNotFoundError(f"{args.ClassifierImplementation} is not a valid implementation")
+
+print("Taking Classifier from : ", classifier_model_path)
+
+if args.ClassifierImplementation == "TF":
+
+    if args.classifierType == "LSTM":
+        classifier = LSTM_Classifier_dual_512(eeg_data['x_train_eeg'].shape[1],  eeg_data['x_train_eeg'].shape[2], 512, num_of_class_labels, num_of_class_type_labels)
+
+    elif args.classifierType == "CNN":
+        print(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2])
+        classifier = convolutional_encoder_model_512_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+
+    classifier.load_weights(classifier_model_path)
+    layer_names = ['EEG_feature_BN2','EEG_Class_Labels', 'EEG_Class_type_Labels']
+    encoder_outputs = [classifier.get_layer(layer_name).output for layer_name in layer_names]
+    encoder_model = Model(inputs=classifier.input, outputs=encoder_outputs)
+
+
+
+# elif args.ClassifierImplementation == "Torch":
+#     if args.classifierType == "Transformer":
+#         encoder_model = EEGViT_pretrained()
+#         encoder_model.load_state_dict(torch.load(classifier_model_path, map_location=torch.device('cpu')))
+#         encoder_model.eval() 
+    ## Set up with custom training loop
+
+history = {'Discriminator':[],'Generator':[]}
+print(f"** Classifier used: {classifier_model_path}")
+
+
 ## #############################################################
 # Make prediction on random selected eeg from eeg_data['x_test']
 ## #############################################################
