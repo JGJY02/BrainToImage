@@ -8,11 +8,10 @@ import numpy as np
 main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
 os.chdir(main_dir) #Jared Edition
 
-save_path = "results/LSTM_CAPSGAN_512_ori/" #"results/CNN_ACGAN_B_128_ori/" # 
-hist_file = "LSTM_all_stacked_signals_dual_512_64_ori/history_LSTM_all_stacked_signals_dual_512_64_ori_final.pkl"  #CNN_all_stacked_signals_dual_128_ori/history_CNN_all_stacked_signals_dual_128_ori_final.pkl
+save_path = "trained_models/Transformer_512_dual/" #"results/CNN_ACGAN_B_128_ori/" # 
+hist_file = "trained_models/Transformer_512_dual/results.npy"  #CNN_all_stacked_signals_dual_128_ori/history_CNN_all_stacked_signals_dual_128_ori_final.pkl
 
-with open(f"trained_models/classifiers/All/000thresh/{hist_file}", "rb") as f:
-    data = pickle.load(f)
+data = np.load(hist_file, allow_pickle = True).item()
 
 # Check the type to ensure it's a dictionary
 print(type(data))
@@ -33,15 +32,15 @@ def plot_graph(data, data1, data2, data3, lossPlot = True):
         fig, axs = plt.subplots(1, 3, figsize=(9, 10))  # You can also use (1, 3) for horizontal layout
 
         save_name = "loss_plots.png"
+        print(data[data1[0]])
         axs[0].plot(iterations, data[data1[0]], color='blue')
         axs[0].plot(iterations, data[data1[1]], color='red')
         text_to_print_1 = f"{data1[2]} \n Final Train: {data[data1[0]][-1]:.3f} ~ Val: {data[data1[1]][-1]:.3f}"
-
-        print(data[data1[0]][0])
-
         axs[0].set_title(text_to_print_1)
 
         # Second plot
+        print(data[data2[0]])
+
         axs[1].plot(iterations, data[data2[0]], color='blue')
         axs[1].plot(iterations, data[data2[1]], color='red')
         text_to_print_2 = f"{data2[2]} \n Final Train: {data[data2[0]][-1]:.3f} ~ Val: {data[data2[1]][-1]:.3f}"
@@ -84,6 +83,6 @@ def plot_graph(data, data1, data2, data3, lossPlot = True):
     plt.savefig(save_file)  # You can also use .jpg, .pdf, .svg, etc.
 
 
-plot_graph(data, ['loss', 'val_loss', 'Total Loss'], ['EEG_Class_Labels_loss', 'val_EEG_Class_Labels_loss', 'Class Label Loss'] , ['EEG_Class_type_Labels_loss', 'val_EEG_Class_type_Labels_loss', 'Subclass label Loss'])
+plot_graph(data, ['total_train_loss', 'total_val_loss', 'Total Loss'], ['train_loss_class', 'val_loss_class', 'Class Label Loss'] , ['train_loss_type', 'val_loss_type', 'Subclass label Loss'])
 
-plot_graph(data, ['EEG_Class_Labels_accuracy', 'val_EEG_Class_Labels_accuracy', 'Class Label Accuracy'] , ['EEG_Class_type_Labels_accuracy', 'val_EEG_Class_type_Labels_accuracy', 'Subclass label Accuracy'], 0,  False)
+plot_graph(data, ['train_acc_class', 'val_acc_class', 'Class Label Accuracy'] , ['train_acc_type', 'val_acc_type', 'Subclass label Accuracy'], 0,  False)

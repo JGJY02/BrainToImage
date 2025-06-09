@@ -13,7 +13,7 @@ from keras.optimizers import Adam
 from keras.utils import to_categorical
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model_512_dual, LSTM_Classifier_dual_512
+from models.eegclassifier import convolutional_encoder_model_128_dual, LSTM_Classifier_dual_512
 from models.dual_models.eeggan import (build_discriminator, build_EEGgan, build_MoGCgenerator, build_MoGMgenerator, build_generator)
 
 from models.dual_models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
@@ -38,25 +38,25 @@ os.chdir(main_dir) #Jared Edition
 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--root_dir', type=str, help="Directory to the dataset", default = "processed_dataset/filter_mne_car",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_dual_All_2.pkl / CNN 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackTransformer_All.pkl", default = "000thresh_AllStackLstm_64_dual_All_2.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_dual_All_2.pkl / CNN 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackTransformer_All.pkl", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
 
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
 
 parser.add_argument('--classifier_path', type=str, help="directory to the classifier", default= "trained_models/classifiers", required=False)
 parser.add_argument('--classifier_model', type=str, help="Name of the model", default= "eeg_classifier_adm5", required=False)
-parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "CAPS",required=False)
-parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "AC",required=False)
+parser.add_argument('--model_type', type=str, help="M,B,C", default= "C", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/GANs",required=False)
 
 parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
-parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "LSTM")
-parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "LSTM_all_stacked_signals_dual_512_64_ori")
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "CNN")
+parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "CNN_all_stacked_signals_dual_128")
 
-parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "LSTM_encoder")
+parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "CNN_encoder")
 
-
+parser.add_argument('--latent_size', type=int, help="Size of the latent, 128 or 512", default = 128, required=False)
 parser.add_argument('--batch_size', type=int, help="Batch size", default = 32,required=False)
-parser.add_argument('--epochs', type=int, help="Number of epochs to run", default = 5000,required=False)
+parser.add_argument('--epochs', type=int, help="Number of epochs to run", default = 2000,required=False)
 parser.add_argument('--save_interval', type=int, help="how many epochs before saving", default = 250,required=False)
 
 
@@ -70,7 +70,7 @@ generator_type = args.model_type #C for concatenation M for Multiplication B for
 
 
 class_labels = [0,1,2,3,4,5,6,7,8,9]
-eeg_encoding_dim = 512
+eeg_encoding_dim = args.latent_size
 
 
 
@@ -88,7 +88,7 @@ run_id = args.dataset_pickle[:indexes[0]] #"90thresh_"# "example_data_" #Extract
 classifier_id = f"{run_id}_{args.epochs}_{args.classifierName}_{model_type}"
 
 #Output save path name
-model_save_path = f"{args.output_dir}/{args.classifierType}_GAN/{args.GAN_type}/{run_id}_{model_type}_512"
+model_save_path = f"{args.output_dir}/{args.classifierType}_GAN/{args.GAN_type}/{run_id}_{model_type}_{eeg_encoding_dim}"
 model_save_path_imgs = f"{model_save_path}/imgs"
 
 #Generate classifier path name
@@ -137,7 +137,7 @@ eeg_data = pickle.load(open(f"{eeg_data_file}", 'rb'), encoding='bytes')
 ## ################
 gan_optimizer = Adam(0.0002, 0.5, decay=1e-6)
 discrim_losses = ['binary_crossentropy', 'sparse_categorical_crossentropy', 'sparse_categorical_crossentropy']  #sparse_
-gen_losses = ['categorical_crossentropy']
+gen_losses = ['sparse_categorical_crossentropy', 'sparse_categorical_crossentropy']
 # build discriminator sub model
 print("Shape of training is")
 print((x_train.shape[1],x_train.shape[2],x_train.shape[3]))
@@ -205,7 +205,7 @@ if args.ClassifierImplementation == "TF":
 
     elif args.classifierType == "CNN":
         print(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2])
-        classifier = convolutional_encoder_model_512_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+        classifier = convolutional_encoder_model_128_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
 
     classifier.load_weights(classifier_model_path)
     layer_names = ['EEG_feature_BN2','EEG_Class_Labels', 'EEG_Class_type_Labels']

@@ -59,7 +59,7 @@ def build_MoGMgenerator(latent_dim,num_channels,num_classes, num_classes_type,ac
     label_type = Input(shape=(1,), dtype='int32', name="Gen_Input_label_type")
 
     label_embedding = Flatten(name="Gen_Flatten")(Embedding(num_classes, latent_dim, name="Gen_Embed")(label))
-    label_embedding_type = Flatten(name="Gen_Flatten")(Embedding(num_classes_type, latent_dim, name="Gen_type_Embed")(label_type))
+    label_embedding_type = Flatten(name="Gen_type_Flatten")(Embedding(num_classes_type, latent_dim, name="Gen_type_Embed")(label_type))
 
 
     model_input = multiply([mog_layer, label_embedding],name="Gen_Mul")
@@ -68,7 +68,7 @@ def build_MoGMgenerator(latent_dim,num_channels,num_classes, num_classes_type,ac
     #model_input = concatenate([mog_layer, label_embedding],name="Gen_Mul")
     gen_img = model(model_input)
 
-    final_model = Model([latent_space, label], gen_img, name="Generator")
+    final_model = Model([latent_space, label, label_type], gen_img, name="Generator")
 
     if verbose:
         #model.summary()
@@ -99,14 +99,14 @@ def build_MoGCgenerator(latent_dim,num_channels,num_classes,num_classes_type ,ac
     label_type = Input(shape=(1,), dtype='int32', name="Gen_Input_label_type")
 
     label_embedding = Flatten(name="Gen_Flatten")(Embedding(num_classes, latent_dim, name="Gen_Embed")(label))
-    label_embedding_type = Flatten(name="Gen_Flatten")(Embedding(num_classes_type, latent_dim, name="Gen_type_Embed")(label_type))
+    label_embedding_type = Flatten(name="Gen_type_Flatten")(Embedding(num_classes_type, latent_dim, name="Gen_type_Embed")(label_type))
 
     model_input = concatenate([mog_layer, label_embedding],name="Gen_Mul")
     model_input = concatenate([model_input, label_embedding_type],name="Gen_Mul_Type")
 
     gen_img = model(model_input)
 
-    final_model = Model([latent_space, label], gen_img, name="Generator")
+    final_model = Model([latent_space, label, label_type], gen_img, name="Generator")
 
     if verbose:
         #model.summary()

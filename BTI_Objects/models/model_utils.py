@@ -68,13 +68,14 @@ def sample_images(epoch, generator, latent_dim, latent_space, labels, main_dir):
 def sample_images_eeg(epoch, gen_imgs, labels, main_dir, dir_to_save):
     r, c = 4, 8
     gen_imgs = (gen_imgs * 127.5) + 127.5
+    gen_imgs = np.array(gen_imgs).astype(int)
     valid = labels[0] == labels[1]
     fig, axs = plt.subplots(r, c)
     fig.suptitle(f"Generated images for Epoch {epoch}",size=10)
     cnt = 0
     for i in range(r):
         for j in range(c):
-            axs[i,j].imshow(gen_imgs[cnt,:,:,0])
+            axs[i,j].imshow(gen_imgs[cnt])
             axs[i,j].axis('off')
             axs[i,j].set_title(f"{valid[cnt]} S:{labels[0][cnt]} P:{labels[1][cnt]}",size=5)
             cnt += 1

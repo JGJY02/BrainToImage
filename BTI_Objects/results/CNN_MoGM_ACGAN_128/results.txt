@@ -1,0 +1,45 @@
+Class 0 (carousel): mean ssim: 0.48, mean rmse: 10.05, mean psnr: 15.19,          mean fsim: 0.55, mean uiq: 0.61, Fake Inception: 1.186 ~ inception std 0.097, Real Inception: 1.528 ~ inception std 0.186 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 1 (piano): mean ssim: 0.60, mean rmse: 9.88, mean psnr: 14.69,          mean fsim: 0.63, mean uiq: 0.70, Fake Inception: 1.147 ~ inception std 0.052, Real Inception: 1.478 ~ inception std 0.252 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 2 (turntable): mean ssim: 0.63, mean rmse: 9.90, mean psnr: 16.39,          mean fsim: 0.58, mean uiq: 0.83, Fake Inception: 1.114 ~ inception std 0.097, Real Inception: 1.271 ~ inception std 0.187 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 3 (tent): mean ssim: 0.61, mean rmse: 9.94, mean psnr: 16.94,          mean fsim: 0.56, mean uiq: 0.84, Fake Inception: 1.257 ~ inception std 0.136, Real Inception: 1.266 ~ inception std 0.096 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 4 (stove2): mean ssim: 0.61, mean rmse: 9.87, mean psnr: 16.53,          mean fsim: 0.59, mean uiq: 0.79, Fake Inception: 1.063 ~ inception std 0.022, Real Inception: 1.688 ~ inception std 0.363 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 5 (birdbath): mean ssim: 0.47, mean rmse: 9.89, mean psnr: 16.49,          mean fsim: 0.51, mean uiq: 0.60, Fake Inception: 1.212 ~ inception std 0.112, Real Inception: 1.014 ~ inception std 0.010 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 6 (drum): mean ssim: 0.44, mean rmse: 9.93, mean psnr: 15.63,          mean fsim: 0.53, mean uiq: 0.67, Fake Inception: 1.042 ~ inception std 0.036, Real Inception: 1.194 ~ inception std 0.103 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 7 (calf1): mean ssim: 0.45, mean rmse: 9.96, mean psnr: 16.55,          mean fsim: 0.52, mean uiq: 0.56, Fake Inception: 1.182 ~ inception std 0.125, Real Inception: 1.219 ~ inception std 0.115 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 8 (mole): mean ssim: 0.43, mean rmse: 10.06, mean psnr: 16.58,          mean fsim: 0.49, mean uiq: 0.52, Fake Inception: 1.113 ~ inception std 0.059, Real Inception: 1.452 ~ inception std 0.159 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Class 9 (stirrup): mean ssim: 0.51, mean rmse: 10.04, mean psnr: 15.40,          mean fsim: 0.54, mean uiq: 0.65, Fake Inception: 1.152 ~ inception std 0.005, Real Inception: 1.702 ~ inception std 0.247 ,classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
+   
+Average Class Results: mean ssim: 0.52, mean rmse: 9.95, mean psnr: 16.04,     mean fsim: 0.55, mean uiq: 0.68, mean classification acc: 100.0% ,mean type classification acc: 100.0% 
+     Fake mean inception: 1.15 ~ mean stds: 0.07 | Real mean inception: 1.38 ~ mean stds: 0.17 | Overall Fake inception: 1.67 ~ Overall stds: 0.07 | Overall Real inception: 6.77 ~ Overall stds: 0.28
+     mean F1: 1.00, mean recall: 1.00, mean precision: 1.00 
+     mean type F1: 1.00, mean type recall: 1.00, mean type precision: 1.00 
+        

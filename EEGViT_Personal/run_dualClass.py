@@ -285,10 +285,10 @@ def train(model, optimizer, scheduler = None):
             scheduler.step()
 
     results_dict = {"total_train_loss": train_losses, "total_val_loss": val_losses, "total_test_loss": test_losses, \
-        "train_loss_class": epoch_train_loss_1, "val_loss_class": epoch_test_loss_1, "test_loss_class": epoch_test_loss_1, \
-        "train_loss_type": epoch_train_loss_2, "val_loss_type": epoch_val_loss_2, "test_loss_type": epoch_test_loss_2,     \
-        "train_acc_class": epoch_train_acc_1, "val_acc_class": epoch_val_acc_1, "test_acc_class": epoch_test_acc_1, \
-        "train_acc_type": epoch_train_acc_2, "val_acc_type": epoch_val_acc_2, "test_acc_type": epoch_test_acc_2 \
+        "train_loss_class": train_losses_1, "val_loss_class": val_losses_1, "test_loss_class": test_losses_1, \
+        "train_loss_type": train_losses_2, "val_loss_type": val_losses_2, "test_loss_type": test_losses_2,     \
+        "train_acc_class": test_accuracies_1, "val_acc_class": val_accuracies_1, "test_acc_class": test_accuracies_1, \
+        "train_acc_type": test_accuracies_2, "val_acc_type": val_accuracies_2, "test_acc_type": test_accuracies_2 \
 }
     np.save(f'{save_path}/results.npy', results_dict)
     torch.save(model.state_dict(), f'{save_path}/eeg_classifier_adm5_final.pth')
