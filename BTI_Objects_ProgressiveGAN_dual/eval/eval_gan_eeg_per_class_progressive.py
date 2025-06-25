@@ -148,8 +148,8 @@ for i in class_labels:
 # combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 # resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 # resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
-resume_run_id           = os.path.join("results", "083-pgan-objects_transformer_dual_2_512_64-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
-resume_snapshot         = 10627 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
+resume_run_id           = os.path.join("results", "086-pgan-objects_transformer_dual_2_512_64_large-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
+resume_snapshot         = 9827 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
 
 
 # #load generator to ekras model
@@ -217,8 +217,8 @@ elif config.TfOrTorch == "Torch":
         for batch in tqdm(loader):
             inputs = batch[0].to(device)  # move to GPU if needed
             encodedLabel, encodedEEG, encodedTypeLabel = encoder_model(inputs)
-            encoded_latents.append(encodedEEG.cpu())  # move to CPU if you want to save memory
-            encoded_labels.append(encodedLabel.cpu())  # move to CPU if you want to save memory
+            encoded_latents.append(encodedEEG.cpu())  
+            encoded_labels.append(encodedLabel.cpu())  
             encoded_type_labels.append(encodedTypeLabel.cpu())
 
     encoded_latents = torch.cat(encoded_latents, dim=0)
@@ -440,7 +440,7 @@ def compute_ssim(true, pred):
 
     return np.mean(values)
 
-inception = InceptionScore()
+inception = InceptionScore(splits=10, normalize=True).to(device)  # normalize=True = expects [0, 1] images
 
 comparison_imgs = []
 
@@ -484,6 +484,9 @@ transform = transforms.Compose([
     transforms.Resize((299, 299)),        # InceptionV3 expects 299x299
     transforms.PILToTensor(),                # Converts to [0, 1] float tensor and rearranges to (C, H, W)
 ])
+
+
+
 
 for i in class_labels:
     class_data = history[i]
@@ -688,11 +691,29 @@ mean_evaluation = {'average_ssim':np.mean(mean_ssim_scores),'average_rmse':np.me
 
 
 ##Inception on whole dataset
-all_tensor_images = torch.stack([transform(img) for img in all_generated_images])
-inception_value = inception(all_tensor_images)
 
+
+# Batch data to allow larger dataset processing
+all_tensor_images = torch.stack([transform(img) for img in all_generated_images])
+all_tensor_dataset = TensorDataset(all_tensor_images) 
+dataloader = DataLoader(all_tensor_dataset, batch_size=32, shuffle=False)
+
+inception.reset()
+for (batch,) in tqdm(dataloader, desc="Computing Inception Score for genereated"):
+    inception.update(batch.to(device))
+
+inception_value = inception.compute()
+
+# Batch data to allow larger dataset processing
 all_real_tensor_images = torch.stack([transform(img) for img in all_true_images])
-real_inception_value = inception(all_real_tensor_images)
+all_real_tensor_dataset = TensorDataset(all_real_tensor_images) 
+dataloader_real = DataLoader(all_real_tensor_dataset, batch_size=32, shuffle=False)
+
+inception.reset()
+for (batch,) in tqdm(dataloader_real, desc="Computing Inception Score for real"):
+    inception.update(batch.to(device))
+
+real_inception_value = inception.compute()
 
 mean_text_to_print = f"Average Class Results: mean ssim: {mean_evaluation['average_ssim']:.2f}, mean rmse: {mean_evaluation['average_rmse']:.2f}, mean psnr: {mean_evaluation['average_psnr']:.2f}, \
     mean fsim: {mean_evaluation['average_fsim']:.2f}, mean uiq: {mean_evaluation['average_uiq']:.2f}, mean classification acc: {mean_evaluation['average_accuracy']:.1%} ,mean type classification acc: {mean_evaluation['average_type_accuracy']:.1%} \n \

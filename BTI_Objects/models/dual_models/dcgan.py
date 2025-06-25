@@ -40,15 +40,15 @@ Examples:
 def build_dc_generator(latent_dim,num_channels,num_classes, num_classes_type,activation="relu",final_activation="tanh",verbose=False):
 
     model = Sequential([
-        Dense(128 * 8 * 8, input_dim=latent_dim, name="Gen_Dense_1"),
-        Reshape((8, 8, 128), name="Reshape"),
+        Dense(latent_dim * 8 * 8, input_dim=latent_dim, name="Gen_Dense_1"),
+        Reshape((8, 8, latent_dim), name="Reshape"),
         Conv2DTranspose(latent_dim, kernel_size=4,strides = 2, padding="same"),
         LeakyReLU(alpha=0.2),
         Conv2DTranspose(256, kernel_size=4,strides = 2, padding="same"),
         LeakyReLU(alpha=0.2),
-        Conv2DTranspose(512, kernel_size=4,strides = 2, padding="same"),
+        Conv2DTranspose(128, kernel_size=4,strides = 2, padding="same"),
         LeakyReLU(alpha=0.2),
-        Conv2D(3, kernel_size=5, padding="same", activation="sigmoid"),
+        Conv2DTranspose(3, kernel_size=5, padding="same", activation="tanh"),
     ], name="Generator_block")
 
     latent_space = Input(shape=(latent_dim,), name="Gen_Input_space")
@@ -81,11 +81,13 @@ def build_dc_discriminator(img_shape,num_classes,num_type_classes=2,leaky_alpha=
         LeakyReLU(alpha=0.2),
         Conv2D(128, kernel_size=4, strides=2, padding="same"),
         LeakyReLU(alpha=0.2),
-        Conv2D(128, kernel_size=4, strides=2, padding="same"),
+        Conv2D(256, kernel_size=4, strides=2, padding="same"),
         LeakyReLU(alpha=0.2),
-        Flatten(),
+        Conv2D(512, kernel_size=4, strides=2, padding="same"),
+        LeakyReLU(alpha=0.2),
         Dropout(0.2),
-        Dense(1, activation="sigmoid")
+
+        Flatten()
     ], name="Discriminator_block")
 
     input_img = Input(shape=img_shape, name="Dis_Input_Img")

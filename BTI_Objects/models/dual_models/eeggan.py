@@ -40,8 +40,8 @@ Examples:
 def build_MoGMgenerator(latent_dim,num_channels,num_classes, num_classes_type,activation="relu",final_activation="tanh",verbose=False):
 
     model = Sequential([
-        Dense(128 * 7 * 7, activation=activation,  name="Gen_Dense_1"),  # input_dim=latent_dim,
-        Reshape((7, 7, 128), name="Reshape"),
+        Dense(latent_dim * 7 * 7, activation=activation,  name="Gen_Dense_1"),  # input_dim=latent_dim,
+        Reshape((7, 7, latent_dim), name="Reshape"),
         BatchNormalization(momentum=0.8, name="Gen_Block1_BN"),
         UpSampling2D(name="Gen_Block1_UpSample"),
         Conv2D(128, kernel_size=3, activation=activation, padding="same", name="Gen_Block1_Conv2D"),
@@ -80,8 +80,8 @@ def build_MoGMgenerator(latent_dim,num_channels,num_classes, num_classes_type,ac
 def build_MoGCgenerator(latent_dim,num_channels,num_classes,num_classes_type ,activation="relu",final_activation="tanh",verbose=False):
 
     model = Sequential([
-        Dense(128 * 7 * 7, activation=activation,  name="Gen_Dense_1"),  # input_dim=latent_dim,
-        Reshape((7, 7, 128), name="Reshape"),
+        Dense(latent_dim * 7 * 7, activation=activation,  name="Gen_Dense_1"),  # input_dim=latent_dim,
+        Reshape((7, 7, latent_dim), name="Reshape"),
         BatchNormalization(momentum=0.8, name="Gen_Block1_BN"),
         UpSampling2D(name="Gen_Block1_UpSample"),
         Conv2D(128, kernel_size=3, activation=activation, padding="same", name="Gen_Block1_Conv2D"),
@@ -118,8 +118,8 @@ def build_MoGCgenerator(latent_dim,num_channels,num_classes,num_classes_type ,ac
 def build_generator(latent_dim,num_channels,num_classes, num_classes_type,activation="relu",final_activation="tanh",verbose=False):
 
     model = Sequential([
-        Dense(512 * 7 * 7, activation=activation, input_dim=latent_dim, name="Gen_Dense_1"),
-        Reshape((7, 7, 512), name="Reshape"),
+        Dense(latent_dim * 7 * 7, activation=activation, input_dim=latent_dim, name="Gen_Dense_1"),
+        Reshape((7, 7, latent_dim), name="Reshape"),
         BatchNormalization(momentum=0.8, name="Gen_Block1_BN"),
         UpSampling2D(name="Gen_Block1_UpSample"),
         Conv2D(128, kernel_size=3, activation=activation, padding="same", name="Gen_Block1_Conv2D"),

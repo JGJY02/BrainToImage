@@ -22,6 +22,10 @@ from keras.layers import (BatchNormalization, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, LeakyReLU, Reshape,
                           UpSampling2D, ZeroPadding2D, multiply, concatenate)
 
+#Adding perceptual loss
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras import layers
+
 
 #----------------------------------------------------------------------------
 # Choose the size and contents of the image snapshot grids that are exported
@@ -194,13 +198,18 @@ def train_progressive_gan(
 
     training_set = dataset.load_dataset(data_dir=config.data_dir, verbose=True, **config.dataset)
 
-    #Create and import eeg latent vectors
-    # eeg_data = pickle.load(open(f"{config.eeg_dataset_dir}/{config.eeg_dataset_pickle}", 'rb'), encoding='bytes')
+    # Load VGG16 model without the top classification layers
+    vgg = VGG16(weights='imagenet', include_top=False, input_shape=(64, 64, 3))
 
-    # eeg_data_tensor = tf.convert_to_tensor(eeg_data['x_test_eeg'])  # Convert to TensorFlow tensor if it's not already
-    # eeg_data_tensor_dataset = tf.data.Dataset.from_tensor_slices(eeg_data_tensor)
-    # eeg_iterator = eeg_data_tensor_dataset.make_initializable_iterator()
+    # Select layers for perceptual loss (e.g., relu2_2, relu3_3, etc.)
+    layer_names = ['block3_conv3']  # Can choose other layers
+    layers_output = [vgg.get_layer(name).output for name in layer_names]
 
+    # Create the model that outputs these layers
+    vgg_model = tf.keras.Model(inputs=vgg.input, outputs=layers_output)
+    vgg_model.trainable = False
+
+    vgg_model.summary()
 
 
 
@@ -250,7 +259,7 @@ def train_progressive_gan(
             ## End of EEG Sampling Addition
             with tf.compat.v1.name_scope('G_loss'), tf.compat.v1.control_dependencies(lod_assign_ops):
                 #G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, **config.G_loss)
-                G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, encoded_signals = encoded_signals, encoded_labels = encoded_labels, encoded_labels_type = encoded_labels_type, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, reals_gpu = reals_gpu, **config.G_loss)
+                G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, vgg_model = vgg_model, encoded_signals = encoded_signals, encoded_labels = encoded_labels, encoded_labels_type = encoded_labels_type, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, reals_gpu = reals_gpu, **config.G_loss)
                 # G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, E=encoder_model, embed = embedding_layer,opt=G_opt, training_set=training_set, eeg_signals= eeg_signals, minibatch_size=minibatch_split,labels = labels_gpu, **config.G_loss)
             with tf.compat.v1.name_scope('D_loss'), tf.compat.v1.control_dependencies(lod_assign_ops):
                 # D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, training_set=training_set, minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, **config.D_loss)

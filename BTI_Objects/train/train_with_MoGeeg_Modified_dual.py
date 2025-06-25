@@ -13,7 +13,7 @@ from keras.optimizers import Adam
 from keras.utils import to_categorical
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model_128_dual, LSTM_Classifier_dual_512
+from models.eegclassifier import convolutional_encoder_model_128_dual, LSTM_Classifier_dual_512, convolutional_encoder_model_512_dual
 from models.dual_models.eeggan import (build_discriminator, build_EEGgan, build_MoGCgenerator, build_MoGMgenerator, build_generator)
 
 from models.dual_models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
@@ -38,23 +38,23 @@ os.chdir(main_dir) #Jared Edition
 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--root_dir', type=str, help="Directory to the dataset", default = "processed_dataset/filter_mne_car",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_dual_All_2.pkl / CNN 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackTransformer_All.pkl", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training LSTM : 000thresh_AllStackLstm_64_dual_All_2.pkl / CNN 000thresh_AllSlidingCNN_dual_28_All.pkl / 000thresh_AllStackTransformer_All.pkl", default = "000thresh_AllStackLstm_64_dual_All_2.pkl" , required=False)
 
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
 
 parser.add_argument('--classifier_path', type=str, help="directory to the classifier", default= "trained_models/classifiers", required=False)
 parser.add_argument('--classifier_model', type=str, help="Name of the model", default= "eeg_classifier_adm5", required=False)
-parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "AC",required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "CAPS",required=False)
 parser.add_argument('--model_type', type=str, help="M,B,C", default= "C", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/GANs",required=False)
 
 parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
-parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "CNN")
-parser.add_argument('--classifierName', type = str, help = "auto_encoder or spectrogram_auto_encoder or LSTM_all_stacked_signals or Transformer_all_stacked_signals", default = "CNN_all_stacked_signals_dual_128")
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "LSTM")
+parser.add_argument('--classifierName', type = str, help = "CNN_all_stacked_signals_dual_128 or CNN_all_stacked_signals_dual_512_28_ori or LSTM_all_stacked_signals_dual_512_64_ori or Transformer_all_stacked_signals", default = "LSTM_all_stacked_signals_dual_512_64_ori")
 
-parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "CNN_encoder")
+parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "LSTM_encoder")
 
-parser.add_argument('--latent_size', type=int, help="Size of the latent, 128 or 512", default = 128, required=False)
+parser.add_argument('--latent_size', type=int, help="Size of the latent, 128 or 512", default = 512, required=False)
 parser.add_argument('--batch_size', type=int, help="Batch size", default = 32,required=False)
 parser.add_argument('--epochs', type=int, help="Number of epochs to run", default = 2000,required=False)
 parser.add_argument('--save_interval', type=int, help="how many epochs before saving", default = 250,required=False)
@@ -137,7 +137,7 @@ eeg_data = pickle.load(open(f"{eeg_data_file}", 'rb'), encoding='bytes')
 ## ################
 gan_optimizer = Adam(0.0002, 0.5, decay=1e-6)
 discrim_losses = ['binary_crossentropy', 'sparse_categorical_crossentropy', 'sparse_categorical_crossentropy']  #sparse_
-gen_losses = ['sparse_categorical_crossentropy', 'sparse_categorical_crossentropy']
+gen_losses = ['mse']
 # build discriminator sub model
 print("Shape of training is")
 print((x_train.shape[1],x_train.shape[2],x_train.shape[3]))
@@ -205,7 +205,10 @@ if args.ClassifierImplementation == "TF":
 
     elif args.classifierType == "CNN":
         print(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2])
-        classifier = convolutional_encoder_model_128_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+        if eeg_encoding_dim == 128:
+            classifier = convolutional_encoder_model_128_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+        elif eeg_encoding_dim == 512:
+            classifier = convolutional_encoder_model_512_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
 
     classifier.load_weights(classifier_model_path)
     layer_names = ['EEG_feature_BN2','EEG_Class_Labels', 'EEG_Class_type_Labels']
@@ -301,15 +304,22 @@ for epoch in range(epochs+1):
         d_loss_real = discriminator.train_on_batch([imgs, y_train[sample_indexs]], [valid, sampled_labels, sampled_labels_type], return_dict=True)
         d_loss_fake = discriminator.train_on_batch([gen_imgs, encoded_labels_all[sample_indexs]], [fake, encoded_labels, encoded_labels_type], return_dict=True)
         d_loss = combine_loss_metrics(d_loss_real, d_loss_fake)
-        g_loss = combined.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type, encoded_labels_all[sample_indexs]], [valid, encoded_labels, encoded_labels_type], return_dict=True)
+        
+        g_loss_disc = combined.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type, encoded_labels_all[sample_indexs]], [valid, encoded_labels, encoded_labels_type], return_dict=True)
+        g_loss_mse = generator.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type], imgs, return_dict = True)
+        
+        g_loss = {'loss' : g_loss_disc['loss'] + g_loss_mse['loss'], 'Discriminator_loss' : g_loss_disc['Discriminator_loss'], 'MSE_loss': g_loss_mse['loss']}
+
 
     else:
         d_loss_real = discriminator.train_on_batch(imgs, [valid, sampled_labels, sampled_labels_type], return_dict=True)
         d_loss_fake = discriminator.train_on_batch(gen_imgs, [fake, encoded_labels, encoded_labels_type], return_dict=True)
-
-    
         d_loss = combine_loss_metrics(d_loss_real, d_loss_fake)
-        g_loss = combined.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type], [valid, encoded_labels, encoded_labels_type], return_dict=True)
+
+        g_loss_disc = combined.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type], [valid, encoded_labels, encoded_labels_type], return_dict=True)
+        g_loss_mse = generator.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type], imgs, return_dict = True)
+
+        g_loss = {'loss' : g_loss_disc['loss'] + g_loss_mse['loss'], 'Discriminator_loss' : g_loss_disc['Discriminator_loss'], 'MSE_loss': g_loss_mse['loss']}
 
     # ---------------------
     #  Train Generator:
@@ -322,7 +332,7 @@ for epoch in range(epochs+1):
     history['Generator'].append(g_loss)
     # Plot the progress
     print (f"Epoch {epoch:5d}: [D loss: {d_loss['loss']:.6f}, Validity acc.: {d_loss['Dis_Validity_accuracy']:.2%}, Label acc: {d_loss['Dis_Class_Label_accuracy']:.2%}, Label type acc: {d_loss['Dis_Class_type_Label_accuracy']:.2%}]")
-    print(f"             [G loss: {g_loss['loss']:.6f}] [D loss: {g_loss['Discriminator_loss']:.6f}]")
+    print(f"             [G loss: {g_loss['loss']:.6f}] [D loss: {g_loss['Discriminator_loss']:.6f}] [MSE loss: {g_loss['MSE_loss']:.6f}]")
 
     # If at save interval => save generated image samples
     if epoch % save_interval == 0 or epoch == epochs:

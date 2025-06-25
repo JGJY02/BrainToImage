@@ -16,6 +16,34 @@ import config
 import torch
 
 
+
+
+def preprocess_image(image):
+    # Normalize images to [0, 1] and apply ImageNet's mean and std normalization
+    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+    image = tf.transpose(image, perm=[0, 2, 3, 1])
+    image = tf.image.resize(image, (64, 64))  # VGG expects 224x224 input size
+    # image = tf.keras.applications.vgg16.preprocess_input(image)  # ImageNet preprocessing
+    return image
+
+def perceptual_loss_func(generated_image, real_image, vgg_model):
+    # Preprocess images
+    generated_image = preprocess_image(generated_image)
+    real_image = preprocess_image(real_image)
+    
+    # Get feature maps from the VGG model
+    gen_features = vgg_model(generated_image)
+    real_features = vgg_model(real_image)
+    
+    # Compute perceptual loss (e.g., using L1 loss between feature maps)
+    loss = 0
+    loss = tf.reduce_mean(tf.square(gen_features - real_features)) 
+
+
+    
+    return loss
+
+
 ##
 def is_tf_expression(x):
     return isinstance(x, tf.compat.v1.Tensor) or isinstance(x, tf.compat.v1.Variable) or isinstance(x, tf.compat.v1.Operation)
@@ -80,7 +108,7 @@ def fp32(*values):
 #         loss += label_penalty_fakes * cond_weight
 #     return loss
 
-def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt, training_set,  minibatch_size, reals_gpu,
+def G_wgan_acgan(G, D, vgg_model, encoded_signals, encoded_labels, encoded_labels_type, opt, training_set,  minibatch_size, reals_gpu,
     cond_weight = 1): # Weight of the conditioning term.
     # latents, labels = processSignals(eeg_signal= eeg_signals, E=E)
     # print(cond_weight)
@@ -97,7 +125,6 @@ def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt
     # print("random signal Labels : ",labels.shape)
     # print("random signal Latent : ", latents.dtype)
     # print("random signal Labels : ", labels.dtype)
-    print(latents.shape)
     fake_images_out = G.get_output_for(latents, encoded_labels, encoded_labels_type, is_training=True)
     fake_scores_out, fake_labels_out, fake_scores_type_out, fake_labels_type_out = fp32(D.get_output_for(fake_images_out, is_training=True))
     loss = -fake_scores_out -fake_scores_type_out
@@ -109,8 +136,14 @@ def G_wgan_acgan(G, D, encoded_signals, encoded_labels, encoded_labels_type, opt
         loss += (label_penalty_fakes+label_penalty_fakes_type) * cond_weight
     
     with tf.compat.v1.name_scope('MatchingPenalty'):
+        print("Hello")
         mse_loss = tf.reduce_mean(tf.square(reals_gpu - fake_images_out), axis=[1, 2, 3])
-    loss += mse_loss
+        mae_loss = tf.reduce_mean(tf.abs(reals_gpu - fake_images_out), axis=[1, 2, 3])
+        # ssim_loss = 1 - tf.reduce_mean(tf.image.ssim(reals_gpu, fake_images_out, max_val=1.0))
+        # perceptual_loss = perceptual_loss_func(reals_gpu, fake_images_out, vgg_model)
+        print("Loss obtained")
+
+    loss += mse_loss + mae_loss
 
     #     perceptual_loss_val = perceptual_loss(reals_gpu, fake_images_out)
 

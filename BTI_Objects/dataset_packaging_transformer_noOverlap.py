@@ -117,7 +117,7 @@ fraction = 1
 #sampled_df.info()
 
 scales = np.arange(0.4, 60, 0.233)
-WINDOW_SIZE = 30
+WINDOW_SIZE = 21
 img_size = (64,64)
 
 obj_images_comp = []
@@ -175,7 +175,7 @@ for file in files:
             X = np.array(X.tolist(), dtype=np.float32)
 
             num_of_test_samples = int(len(range(X.shape[1] - WINDOW_SIZE + 1)) * splitPercent)
-            test_sample_idx = np.random.choice(len(range(X.shape[1] - WINDOW_SIZE + 1)), size = num_of_test_samples, replace = False)
+            test_sample_idx = range(X.shape[1] - WINDOW_SIZE + 1)[num_of_test_samples:-1] # np.random.choice(len(range(X.shape[1] - WINDOW_SIZE + 1)), size = num_of_test_samples, replace = False)
 
             #Obtain secondary Class for specific Classification
             img_path = os.path.join(dir_to_extract_images, img_name)

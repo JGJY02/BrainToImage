@@ -8,8 +8,8 @@ import numpy as np
 main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
 os.chdir(main_dir) #Jared Edition
 
-save_path = "results/LSTM_CAPSGAN_512_ori/" #"results/CNN_ACGAN_B_128_ori/" # 
-hist_file = "LSTM_all_stacked_signals_dual_512_64_ori/history_LSTM_all_stacked_signals_dual_512_64_ori_final.pkl"  #CNN_all_stacked_signals_dual_128_ori/history_CNN_all_stacked_signals_dual_128_ori_final.pkl
+save_path = "results/CNN_Basic_ACGAN_512/" #"results/CNN_ACGAN_B_128_ori/" # 
+hist_file = "CNN_all_stacked_signals_dual_512_28_ori/history_CNN_all_stacked_signals_dual_512_28_ori_final.pkl"  #CNN_all_stacked_signals_dual_128_ori/history_CNN_all_stacked_signals_dual_128_ori_final.pkl
 
 with open(f"trained_models/classifiers/All/000thresh/{hist_file}", "rb") as f:
     data = pickle.load(f)

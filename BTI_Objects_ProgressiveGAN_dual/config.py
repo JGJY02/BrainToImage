@@ -23,11 +23,11 @@ root_dir = 'datasets/processed_dataset'
 
 category = "All" #"sub-01"
 eeg_dataset_dir = f"{root_dir}/filter_mne_car/{category}"
-eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_unseen.pkl" #000thresh_AllStack_Transformer_dual_2_unseen #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
+eeg_dataset_pickle = f"000thresh_AllStack_large_Transformer_dual_2_unseen.pkl" #000thresh_AllStack_Transformer_dual_2_unseen #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
 result_dir = 'results'
 
-eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_2_512"
-evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_unseen"
+eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_2_512_large"
+evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_large_unseen"
 #----------------------------------------------------------------------------
 TfOrTorch = "Torch" #Choose between TF or Torch
 dual = True
@@ -68,7 +68,9 @@ grid        = EasyDict(size='1080p', layout='random')       # Options for train.
 # desc += '-mnist';               dataset = EasyDict(tfrecord_dir='mnist')
 
 # desc += '-objects';               dataset = EasyDict(tfrecord_dir='objects')
-desc += '-objects_transformer_dual_2_512_64';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64')
+
+desc += '-objects_transformer_dual_2_512_64_large';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64_large')
+# desc += '-objects_transformer_dual_2_512_64';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64')
 
 # desc += '-objects_transformer_dual';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual')
 # desc += '-objects_transformer';               dataset = EasyDict(tfrecord_dir='objects_transformer')
@@ -115,7 +117,12 @@ desc += '-cond'; dataset.max_label_size = 'full' # conditioned on full label
 
 # Config presets (choose one).
 # desc += '-preset-v1-1gpu'; num_gpus = 1; D.mbstd_group_size = 16; sched.minibatch_base = 16; sched.minibatch_dict = {256: 14, 512: 6, 1024: 3}; sched.lod_training_kimg = 800; sched.lod_transition_kimg = 800; train.total_kimg = 19000
+
+#Previous setting
 desc += '-preset-v2-1gpu'; num_gpus = 1; sched.minibatch_base = 4; sched.minibatch_dict = {4: 128, 8: 128, 16: 128, 32: 64, 64: 32, 128: 16, 256: 8, 512: 4}; sched.G_lrate_dict = {1024: 0.0015}; sched.D_lrate_dict = EasyDict(sched.G_lrate_dict); train.total_kimg = 12000
+# desc += '-preset-v2-1gpu'; num_gpus = 1; sched.minibatch_base = 4; sched.minibatch_dict = {4: 64, 8: 64, 16: 64, 32: 32, 64: 16, 128: 16, 256: 4, 512: 4}; sched.G_lrate_dict = {1024: 0.0015}; sched.D_lrate_dict = EasyDict(sched.G_lrate_dict); train.total_kimg = 12000
+
+
 #desc += '-preset-v2-2gpus'; num_gpus = 2; sched.minibatch_base = 8; sched.minibatch_dict = {4: 256, 8: 256, 16: 128, 32: 64, 64: 32, 128: 16, 256: 8}; sched.G_lrate_dict = {512: 0.0015, 1024: 0.002}; sched.D_lrate_dict = EasyDict(sched.G_lrate_dict); train.total_kimg = 12000
 #desc += '-preset-v2-4gpus'; num_gpus = 4; sched.minibatch_base = 16; sched.minibatch_dict = {4: 512, 8: 256, 16: 128, 32: 64, 64: 32, 128: 16}; sched.G_lrate_dict = {256: 0.0015, 512: 0.002, 1024: 0.003}; sched.D_lrate_dict = EasyDict(sched.G_lrate_dict); train.total_kimg = 12000
 #desc += '-preset-v2-8gpus'; num_gpus = 8; sched.minibatch_base = 32; sched.minibatch_dict = {4: 512, 8: 256, 16: 128, 32: 64, 64: 32}; sched.G_lrate_dict = {128: 0.0015, 256: 0.002, 512: 0.003, 1024: 0.003}; sched.D_lrate_dict = EasyDict(sched.G_lrate_dict); train.total_kimg = 12000

@@ -1,7 +1,6 @@
 from models.EEGViT_pretrained import EEGViT_pretrained, EEGViT_pretrained_512
 from models.EEGViT import EEGViT_raw
 from models.ViTBase import ViTBase
-from models.ViTBase_pretrained import ViTBase_pretrained
 from helper_functions import split
 from dataset.EEGEyeNet import EEGEyeNetDataset, MultiClassDataset
 import torch
@@ -15,11 +14,11 @@ import pickle
 '''
 models: EEGViT_pretrained; EEGViT_raw; ViTBase; ViTBase_pretrained
 '''
-eeg_data = pickle.load(open("dataset/000thresh_AllStack_Transformer_dual_2.pkl", 'rb'), encoding='bytes')
+eeg_data = pickle.load(open("dataset/000thresh_AllStack_large_Transformer_dual_2_64.pkl", 'rb'), encoding='bytes')
 model = EEGViT_pretrained_512(eeg_data['y_train'].shape[1], eeg_data['y_secondary_train'].shape[1])
 
 # EEGEyeNet = MultiClassDataset('./dataset/000thresh_AllStack_Transformer_dual.pkl')
-save_path = "trained_models/Transformer_512_dual"
+save_path = "trained_models/Transformer_512_dual_large"
 os.makedirs(save_path, exist_ok=True)
 batch_size = 64
 n_epoch = 15

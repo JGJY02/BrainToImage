@@ -122,3 +122,14 @@ def combine_loss_metrics(d_loss_real, d_loss_fake):
 
     return d_loss_combined
 
+
+def combine_loss_metrics_new(d_loss_real, d_loss_fake):
+    # Initialize a new dictionary to store the combined results
+    d_loss_combined = {}
+
+    # Iterate through the keys of the first dictionary (assumes both have the same keys)
+    for key in d_loss_real:
+        # Compute the average of the values for the corresponding key
+        d_loss_combined[key] = 0.5 * np.add(d_loss_real[key], d_loss_fake[key])
+
+    return d_loss_combined
