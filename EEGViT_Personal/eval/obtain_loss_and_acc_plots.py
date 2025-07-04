@@ -82,7 +82,31 @@ def plot_graph(data, data1, data2, data3, lossPlot = True):
     save_file = save_path + save_name
     plt.savefig(save_file)  # You can also use .jpg, .pdf, .svg, etc.
 
+def plot_total_loss_graph(data, data1, data2, data3, lossPlot = True):
+    # Create a figure and 3 subplots (3 rows, 1 column)
+    iterations = range(len(data[data1[0]]))
+
+    # First plot
+    fig, axs = plt.subplots(1, 1, figsize=(6, 6))  # You can also use (1, 3) for horizontal layout
+
+    save_name = "total_loss_plots.png"
+    axs.plot(iterations, data[data1[0]], color='blue')
+    axs.plot(iterations, data[data1[1]], color='red')
+    text_to_print_1 = f"{data1[2]} \n Final Train: {data[data1[0]][-1]:.3f} ~ Val: {data[data1[1]][-1]:.3f}"
+
+    print(data[data1[0]][0])
+
+    axs.set_title(text_to_print_1)
+
+    # Add spacing
+    plt.tight_layout()
+    # plt.show()
+    save_file = save_path + save_name
+    plt.savefig(save_file)  # You can also use .jpg, .pdf, .svg, etc.
+
 
 plot_graph(data, ['total_train_loss', 'total_val_loss', 'Total Loss'], ['train_loss_class', 'val_loss_class', 'Class Label Loss'] , ['train_loss_type', 'val_loss_type', 'Subclass label Loss'])
+plot_total_loss_graph(data, ['total_train_loss', 'total_val_loss', 'Total Loss'], ['train_loss_class', 'val_loss_class', 'Class Label Loss'] , ['train_loss_type', 'val_loss_type', 'Subclass label Loss'])
+
 
 plot_graph(data, ['train_acc_class', 'val_acc_class', 'Class Label Accuracy'] , ['train_acc_type', 'val_acc_type', 'Subclass label Accuracy'], 0,  False)

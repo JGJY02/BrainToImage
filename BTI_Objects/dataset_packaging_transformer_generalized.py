@@ -43,11 +43,30 @@ parser.add_argument('--classesToTake', type = int, help="Number of unique images
 parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllStack_large", required=False)
 parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car",required=False)
 
-parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= True, required=False)
+parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= False, required=False)
 
 
 args = parser.parse_args()
 
+def zscore_normalize_segment(segment):
+    # segment shape: (channels, time_points)
+    mean = np.mean(segment, axis=1, keepdims=True)
+    std = np.std(segment, axis=1, keepdims=True)
+    
+    # Avoid divide-by-zero
+    std[std == 0] = 1
+
+    return (segment - mean) / std
+
+def minmax_normalize_minus1_1(window):
+    min_vals = window.min(axis=1, keepdims=True)
+    max_vals = window.max(axis=1, keepdims=True)
+    denom = max_vals - min_vals
+    denom[denom == 0] = 1  # avoid divide-by-zero
+    return 2 * (window - min_vals) / denom - 1
+
+def reverse_signal(eeg_window):
+    return np.flip(eeg_window, axis=1)
 
 ## File Directories
 if args.create_unseen:
@@ -96,6 +115,7 @@ if args.create_unseen == False:
     softmax_labels = range(10) # range(len(class_labels))
     type_labels = range(args.classesToTake) #Index for each unique image
     softmax_dict = {i: item for i, item in enumerate(class_labels, start=0)} #Preset the dictionary
+    flips = 2
 else:
     existing_dataset =  pd.read_pickle(output_file_path)
     softmax_labels = range(10) # range(len(class_labels))
@@ -103,6 +123,7 @@ else:
 
     softmax_dict = existing_dataset['dictionary']
     output_file_path = f"{output_dir_path}/{output_prefix}_{args.dataset_pickle}_{args.classesToTake}_unseen.pkl"
+    flips = 1
 
 print(softmax_dict)
 
@@ -175,6 +196,7 @@ for file in files:
             img_name =row['object_name']
             X = np.array(X.tolist(), dtype=np.float32)
 
+
             num_of_test_samples = int(len(range(X.shape[1] - WINDOW_SIZE + 1)) * splitPercent)
             test_sample_idx = np.random.choice(len(range(X.shape[1] - WINDOW_SIZE + 1)), size = num_of_test_samples, replace = False)
 
@@ -188,47 +210,56 @@ for file in files:
                 for i in range(X.shape[1] - WINDOW_SIZE + 1):
 
     
+                    for flip in range(flips):
+                        w_data = X[:, i:i+WINDOW_SIZE]
+                        if flip == 1:
+                            w_data = reverse_signal(w_data)
+                        # print("data before normalizing")
+                        # print(w_data.shape)
+                        w_data = zscore_normalize_segment(w_data) 
+                        # w_data = minmax_normalize_minus1_1(w_data)
+                        # print("data after normalizing, ")
+                        # print(w_data.shape)
 
-                    w_data = X[:, i:i+WINDOW_SIZE]
-                    # w_data = np.transpose(w_data, (1,0))
-                    # print(w_data.dtype)
-                    
-                    # print(w_data.shape)
-                    # feature_data.append(w_data)
-                    # label_data.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
+                        # w_data = np.transpose(w_data, (1,0))
+                        # print(w_data.dtype)
+                        
+                        # print(w_data.shape)
+                        # feature_data.append(w_data)
+                        # label_data.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
 
-                    
-                    # img_path = os.path.join(dir_to_extract_images, img_name)
-                    # try:
-                    #     img = Image.open(img_path).resize(img_size)
-                    #     img_array = np.array(img)  # Normalize
+                        
+                        # img_path = os.path.join(dir_to_extract_images, img_name)
+                        # try:
+                        #     img = Image.open(img_path).resize(img_size)
+                        #     img_array = np.array(img)  # Normalize
 
-                    #     obj_images.append(img_array)
+                        #     obj_images.append(img_array)
 
-                    # except Exception as e:
-                    #     print(f"Error loading {img_path}: {e}")
+                        # except Exception as e:
+                        #     print(f"Error loading {img_path}: {e}")
 
 
-                    try:
-                        img = Image.open(img_path).resize(img_size)
-                        img_array = np.array(img)  # Normalize
-                    except Exception as e:
-                        print(f"Error loading {img_path}: {e}")
+                        try:
+                            img = Image.open(img_path).resize(img_size)
+                            img_array = np.array(img)  # Normalize
+                        except Exception as e:
+                            print(f"Error loading {img_path}: {e}")
 
-                    # print(i)
-                    # print(i not in test_sample_idx)
+                        # print(i)
+                        # print(i not in test_sample_idx)
 
-                    if i not in test_sample_idx:
-                        train_feature_array.append(w_data)
-                        train_label_array.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
-                        train_secondary_label_array.append(to_categorical(int(secondary_class_label),num_classes=len(type_labels)))
-                        train_img_array.append(img_array)
-                    
-                    else:
-                        test_feature_array.append(w_data)
-                        test_label_array.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
-                        test_secondary_label_array.append(to_categorical(int(secondary_class_label),num_classes=len(type_labels)))
-                        test_img_array.append(img_array)
+                        if i not in test_sample_idx:
+                            train_feature_array.append(w_data)
+                            train_label_array.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
+                            train_secondary_label_array.append(to_categorical(int(secondary_class_label),num_classes=len(type_labels)))
+                            train_img_array.append(img_array)
+                        
+                        else:
+                            test_feature_array.append(w_data)
+                            test_label_array.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
+                            test_secondary_label_array.append(to_categorical(int(secondary_class_label),num_classes=len(type_labels)))
+                            test_img_array.append(img_array)
                 
 
     

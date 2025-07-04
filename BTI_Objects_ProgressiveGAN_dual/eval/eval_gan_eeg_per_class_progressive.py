@@ -148,7 +148,7 @@ for i in class_labels:
 # combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 # resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 # resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
-resume_run_id           = os.path.join("results", "086-pgan-objects_transformer_dual_2_512_64_large-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
+resume_run_id           = os.path.join("results", "083-pgan-objects_transformer_dual_2_512_64-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 resume_snapshot         = 9827 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
 
 
@@ -440,6 +440,103 @@ def compute_ssim(true, pred):
 
     return np.mean(values)
 
+def save_imgs_horizontal_vertical(images, output_dir):
+    # Set up the grid dimensions (10x10)
+    rows = 10
+    cols = 2
+
+    # Create a figure to display the grid of images
+    fig, axes = plt.subplots(rows, cols, figsize=(1.28, 6.4))
+
+    # Loop through the axes and images to display them
+
+    for i in range(rows):
+        axes[i,0].imshow(images[i][0][1])
+        axes[i,1].imshow(images[i][1][1])
+
+        axes[i,0].axis('off')  # Hide the axes
+        axes[i,1].axis('off')  # Hide the axes
+    # Save the grid of images to a file
+    output_path = f'{output_dir}/ImageVertical.png'
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+        # Set up the grid dimensions (10x10)
+    rows = 2
+    cols = 10
+
+    # Create a figure to display the grid of images
+    fig, axes = plt.subplots(rows, cols, figsize=(6.4, 1.28))
+
+    # Loop through the axes and images to display them
+
+    for i in range(cols):
+        axes[0,i].imshow(images[i][0][1])
+        axes[1,i].imshow(images[i][1][1])
+
+        axes[0,i].axis('off')  # Hide the axes
+        axes[1,i].axis('off')  # Hide the axes
+    # Save the grid of images to a file
+    output_path = f'{output_dir}/ImageHorizontal.png'
+    
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+        # Set up the grid dimensions (10x10)
+    rows = 10
+    cols = 2
+
+    # Create a figure to display the grid of images
+    fig, axes = plt.subplots(rows, cols, figsize=(1.28, 6.4))
+
+    # Loop through the axes and images to display them
+
+    for i in range(rows):
+        axes[i,0].imshow(images[i][0][0])
+        axes[i,1].imshow(images[i][1][0])
+
+        axes[i,0].axis('off')  # Hide the axes
+        axes[i,1].axis('off')  # Hide the axes
+    # Save the grid of images to a file
+    output_path = f'{output_dir}/ImageVertical_ori.png'
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+        # Set up the grid dimensions (10x10)
+    rows = 2
+    cols = 10
+
+    # Create a figure to display the grid of images
+    fig, axes = plt.subplots(rows, cols, figsize=(6.4, 1.28))
+
+    # Loop through the axes and images to display them
+
+    for i in range(cols):
+        axes[0,i].imshow(images[i][0][0])
+        axes[1,i].imshow(images[i][1][0])
+
+        axes[0,i].axis('off')  # Hide the axes
+        axes[1,i].axis('off')  # Hide the axes
+    # Save the grid of images to a file
+    output_path = f'{output_dir}/ImageHorizontal_ori.png'
+    
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
 inception = InceptionScore(splits=10, normalize=True).to(device)  # normalize=True = expects [0, 1] images
 
 comparison_imgs = []
@@ -725,6 +822,8 @@ text_to_save.append(mean_text_to_print)
 
 
 save_imgs_comparison(comparison_imgs, output_dir)
+save_imgs_horizontal_vertical(comparison_imgs, output_dir)
+
 # stacked_images = np.stack(sample_img_per_class, axis=0)
 # stacked_labels = np.stack(list_of_labels, axis = 0)
 

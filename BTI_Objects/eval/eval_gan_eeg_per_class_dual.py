@@ -42,16 +42,16 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description="Process some variables.")
-parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/CNN_encoder/All",required=False)
+parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/LSTM_encoder/All",required=False)
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_dual_28_All.pkl / 000thresh_AllStackLstm_64_dual_All_2.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_dual_28_All.pkl / 000thresh_AllStackLstm_64_dual_All_2.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllStackLstm_64_dual_All_2.pkl" , required=False)
 parser.add_argument('--classifier_path', type=str, help="Directory to output", default = "trained_models/classifiers",required=False)
 
-parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "AC",required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "CAPS",required=False)
 parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
-parser.add_argument('--model_type', type=str, help="M,B,C", default= "C", required=False)
-parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "CNN")
-parser.add_argument('--classifierName', type = str, help = "CNN_all_stacked_signals_dual_128 or CNN_all_stacked_signals_dual_512_28_ori or LSTM_all_stacked_signals_dual_512_64_ori or Transformer_all_stacked_signals", default = "CNN_all_stacked_signals_dual_512_28_ori")
+parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "LSTM")
+parser.add_argument('--classifierName', type = str, help = "CNN_all_stacked_signals_dual_128 or CNN_all_stacked_signals_dual_512_28_ori or LSTM_all_stacked_signals_dual_512_64_ori or Transformer_all_stacked_signals", default = "LSTM_all_stacked_signals_dual_512_64_ori")
 
 parser.add_argument('--latent_size', type=int, help="Size of the latent, 128 or 512", default = 512, required=False)
 parser.add_argument('--gan_path', type=str, help="Directory to GAN File", default = "trained_models/GANs",required=False)
@@ -339,6 +339,55 @@ def save_imgs_comparison(images, output_dir):
         
     # Save the grid of images to a file
     output_path = f'{output_dir}/ImageComparison.png'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+def save_imgs_horizontal_vertical(images, output_dir):
+    # Set up the grid dimensions (10x10)
+    rows = 10
+    cols = 2
+
+    # Create a figure to display the grid of images
+    fig, axes = plt.subplots(rows, cols, figsize=(1.28, 6.4))
+
+    # Loop through the axes and images to display them
+
+    for i in range(rows):
+        axes[i,0].imshow(images[i][0][1])
+        axes[i,1].imshow(images[i][1][1])
+
+        axes[i,0].axis('off')  # Hide the axes
+        axes[i,1].axis('off')  # Hide the axes
+    # Save the grid of images to a file
+    output_path = f'{output_dir}/ImageVertical.png'
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+        # Set up the grid dimensions (10x10)
+    rows = 2
+    cols = 10
+
+    # Create a figure to display the grid of images
+    fig, axes = plt.subplots(rows, cols, figsize=(6.4, 1.28))
+
+    # Loop through the axes and images to display them
+
+    for i in range(cols):
+        axes[0,i].imshow(images[i][0][1])
+        axes[1,i].imshow(images[i][1][1])
+
+        axes[0,i].axis('off')  # Hide the axes
+        axes[1,i].axis('off')  # Hide the axes
+    # Save the grid of images to a file
+    output_path = f'{output_dir}/ImageHorizontal.png'
+    
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     plt.tight_layout()
@@ -691,6 +740,7 @@ text_to_save.append(mean_text_to_print)
 # stacked_labels = stacked_labels.reshape(-1)
 # save_imgs(stacked_images, "Sampling image of each class", "all" ,stacked_labels, stacked_labels, output_dir)
 save_imgs_comparison(comparison_imgs, output_dir)
+save_imgs_horizontal_vertical(comparison_imgs, output_dir)
 
 with open(f"{output_dir}/results.txt", "w") as file:
     file.write("\n".join(text_to_save) + "\n")
