@@ -425,6 +425,7 @@ def create_DualObjects(tfrecord_dir, object_dir, fileName, classifierModelPath):
             device = torch.device("cpu")
         encoder_model = EEGViT_pretrained_dual(data['y_train'].shape[1], data['y_secondary_train'].shape[1])
         encoder_model.load_state_dict(torch.load(classifierModelPath, map_location=device))
+        encoder_model = encoder_model.to(device)
         encoder_model.eval() 
 
         # signals = np.transpose(signals, (0,2,1))[:,np.newaxis,:,:]

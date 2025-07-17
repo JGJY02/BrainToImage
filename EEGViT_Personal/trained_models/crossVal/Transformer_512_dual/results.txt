@@ -1,0 +1,33 @@
+Class 0 (carousel): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 1 (piano): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 2 (turntable): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 3 (tent): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 4 (stove2): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 5 (birdbath): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 6 (drum): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 7 (calf1): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 8 (mole): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Class 9 (stirrup): classification acc: 100.0%, classification type acc: 100.0%, 
+             mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+             mean type F1 1.00, mean type recall 1.00, mean type precision 1.00
+Average Class Results: classification acc: 100.0%, classification type acc: 100.0%, 
+         mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
+         mean type F1 1.00, mean type recall 1.00, mean type precision 1.00

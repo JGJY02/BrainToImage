@@ -42,16 +42,16 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description="Process some variables.")
-parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/LSTM_encoder/All",required=False)
+parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/CNN_encoder/All",required=False)
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_dual_28_All.pkl / 000thresh_AllStackLstm_64_dual_All_2.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllStackLstm_64_dual_All_2.pkl" , required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_dual_28_All.pkl / 000thresh_AllStackLstm_64_dual_All_2.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
 parser.add_argument('--classifier_path', type=str, help="Directory to output", default = "trained_models/classifiers",required=False)
 
-parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "CAPS",required=False)
+parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "AC",required=False)
 parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
-parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
-parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "LSTM")
-parser.add_argument('--classifierName', type = str, help = "CNN_all_stacked_signals_dual_128 or CNN_all_stacked_signals_dual_512_28_ori or LSTM_all_stacked_signals_dual_512_64_ori or Transformer_all_stacked_signals", default = "LSTM_all_stacked_signals_dual_512_64_ori")
+parser.add_argument('--model_type', type=str, help="M,B,C", default= "C", required=False)
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "CNN")
+parser.add_argument('--classifierName', type = str, help = "CNN_all_stacked_signals_dual_128 or CNN_all_stacked_signals_dual_512_28_ori or LSTM_all_stacked_signals_dual_512_64_ori or Transformer_all_stacked_signals", default = "CNN_all_stacked_signals_dual_512_28_ori")
 
 parser.add_argument('--latent_size', type=int, help="Size of the latent, 128 or 512", default = 512, required=False)
 parser.add_argument('--gan_path', type=str, help="Directory to GAN File", default = "trained_models/GANs",required=False)

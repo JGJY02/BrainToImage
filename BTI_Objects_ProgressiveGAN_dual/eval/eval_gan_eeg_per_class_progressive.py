@@ -148,7 +148,7 @@ for i in class_labels:
 # combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
 # resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 # resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
-resume_run_id           = os.path.join("results", "083-pgan-objects_transformer_dual_2_512_64-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
+resume_run_id           = os.path.join("results", "086-pgan-objects_transformer_dual_2_512_64_large-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 resume_snapshot         = 9827 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
 
 
@@ -199,6 +199,7 @@ elif config.TfOrTorch == "Torch":
 
     encoder_model = EEGViT_pretrained_dual(len(class_labels), len(type_labels))
     encoder_model.load_state_dict(torch.load(classifier_model_path, map_location=device))
+    encoder_model = encoder_model.to(device)
     encoder_model.eval() 
 
     # signals = np.transpose(signals, (0,2,1))[:,np.newaxis,:,:]
@@ -722,12 +723,14 @@ for i in class_labels:
 
 
     # Convert all images
-    tensor_images = torch.stack([transform(img) for img in class_data['generated']])
+    tensor_images = torch.stack([transform(img) for img in class_data['generated']]).to(device)
     inception_value = inception(tensor_images)
+    inception_value = [tensor.cpu() for tensor in inception_value]
 
-    tensor_images_real = torch.stack([transform(img) for img in class_data['true']])
+    tensor_images_real = torch.stack([transform(img) for img in class_data['true']]).to(device)
     inception_value_real = inception(tensor_images_real)
-    
+    inception_value_real = [tensor.cpu() for tensor in inception_value_real]
+
     #F1
     F1_value = f1_score(true_labels_array, conditioning_labels_array, average='macro')
     F1_type_value = f1_score(true_labels_type_array, conditioning_labels_type_array, average='macro')
@@ -791,7 +794,7 @@ mean_evaluation = {'average_ssim':np.mean(mean_ssim_scores),'average_rmse':np.me
 
 
 # Batch data to allow larger dataset processing
-all_tensor_images = torch.stack([transform(img) for img in all_generated_images])
+all_tensor_images = torch.stack([transform(img) for img in all_generated_images]).to(device)
 all_tensor_dataset = TensorDataset(all_tensor_images) 
 dataloader = DataLoader(all_tensor_dataset, batch_size=32, shuffle=False)
 
@@ -800,9 +803,10 @@ for (batch,) in tqdm(dataloader, desc="Computing Inception Score for genereated"
     inception.update(batch.to(device))
 
 inception_value = inception.compute()
+inception_value = [tensor.cpu() for tensor in inception_value]
 
 # Batch data to allow larger dataset processing
-all_real_tensor_images = torch.stack([transform(img) for img in all_true_images])
+all_real_tensor_images = torch.stack([transform(img) for img in all_true_images]).to(device)
 all_real_tensor_dataset = TensorDataset(all_real_tensor_images) 
 dataloader_real = DataLoader(all_real_tensor_dataset, batch_size=32, shuffle=False)
 
@@ -811,6 +815,7 @@ for (batch,) in tqdm(dataloader_real, desc="Computing Inception Score for real")
     inception.update(batch.to(device))
 
 real_inception_value = inception.compute()
+real_inception_value = [tensor.cpu() for tensor in real_inception_value]
 
 mean_text_to_print = f"Average Class Results: mean ssim: {mean_evaluation['average_ssim']:.2f}, mean rmse: {mean_evaluation['average_rmse']:.2f}, mean psnr: {mean_evaluation['average_psnr']:.2f}, \
     mean fsim: {mean_evaluation['average_fsim']:.2f}, mean uiq: {mean_evaluation['average_uiq']:.2f}, mean classification acc: {mean_evaluation['average_accuracy']:.1%} ,mean type classification acc: {mean_evaluation['average_type_accuracy']:.1%} \n \

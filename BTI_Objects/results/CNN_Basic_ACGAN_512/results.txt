@@ -1,45 +1,45 @@
-Class 0 (carousel): mean ssim: 0.77, mean rmse: 9.54, mean psnr: 20.94,          mean fsim: 0.69, mean uiq: 0.88, Fake Inception: 1.644 ~ inception std 0.226, Real Inception: 1.356 ~ inception std 0.307 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 0 (carousel): mean ssim: 0.77, mean rmse: 9.54, mean psnr: 20.94,          mean fsim: 0.69, mean uiq: 0.88, Fake Inception: 1.644 ~ inception std 0.226, Real Inception: 1.237 ~ inception std 0.307 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 1 (piano): mean ssim: 0.84, mean rmse: 9.26, mean psnr: 21.78,          mean fsim: 0.77, mean uiq: 0.94, Fake Inception: 1.423 ~ inception std 0.147, Real Inception: 1.539 ~ inception std 0.189 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 1 (piano): mean ssim: 0.84, mean rmse: 9.26, mean psnr: 21.78,          mean fsim: 0.77, mean uiq: 0.94, Fake Inception: 1.331 ~ inception std 0.226, Real Inception: 1.478 ~ inception std 0.252 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 2 (turntable): mean ssim: 0.86, mean rmse: 9.17, mean psnr: 22.03,          mean fsim: 0.71, mean uiq: 0.96, Fake Inception: 1.457 ~ inception std 0.240, Real Inception: 1.349 ~ inception std 0.123 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 2 (turntable): mean ssim: 0.86, mean rmse: 9.17, mean psnr: 22.03,          mean fsim: 0.71, mean uiq: 0.96, Fake Inception: 1.398 ~ inception std 0.274, Real Inception: 1.389 ~ inception std 0.004 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 3 (tent): mean ssim: 0.84, mean rmse: 8.93, mean psnr: 23.49,          mean fsim: 0.66, mean uiq: 0.96, Fake Inception: 1.135 ~ inception std 0.092, Real Inception: 1.194 ~ inception std 0.135 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 3 (tent): mean ssim: 0.84, mean rmse: 8.93, mean psnr: 23.49,          mean fsim: 0.66, mean uiq: 0.96, Fake Inception: 1.135 ~ inception std 0.092, Real Inception: 1.287 ~ inception std 0.026 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 4 (stove2): mean ssim: 0.85, mean rmse: 9.11, mean psnr: 22.88,          mean fsim: 0.72, mean uiq: 0.95, Fake Inception: 1.404 ~ inception std 0.278, Real Inception: 1.861 ~ inception std 0.000 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 4 (stove2): mean ssim: 0.85, mean rmse: 9.11, mean psnr: 22.88,          mean fsim: 0.72, mean uiq: 0.95, Fake Inception: 1.512 ~ inception std 0.180, Real Inception: 1.775 ~ inception std 0.272 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 5 (birdbath): mean ssim: 0.75, mean rmse: 9.15, mean psnr: 22.56,          mean fsim: 0.65, mean uiq: 0.89, Fake Inception: 1.300 ~ inception std 0.008, Real Inception: 1.016 ~ inception std 0.008 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 5 (birdbath): mean ssim: 0.75, mean rmse: 9.15, mean psnr: 22.56,          mean fsim: 0.65, mean uiq: 0.89, Fake Inception: 1.215 ~ inception std 0.148, Real Inception: 1.008 ~ inception std 0.010 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 6 (drum): mean ssim: 0.77, mean rmse: 8.93, mean psnr: 22.51,          mean fsim: 0.70, mean uiq: 0.92, Fake Inception: 1.207 ~ inception std 0.074, Real Inception: 1.146 ~ inception std 0.126 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 6 (drum): mean ssim: 0.77, mean rmse: 8.93, mean psnr: 22.51,          mean fsim: 0.70, mean uiq: 0.92, Fake Inception: 1.207 ~ inception std 0.073, Real Inception: 1.143 ~ inception std 0.123 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 7 (calf1): mean ssim: 0.75, mean rmse: 9.24, mean psnr: 22.50,          mean fsim: 0.64, mean uiq: 0.87, Fake Inception: 1.299 ~ inception std 0.105, Real Inception: 1.247 ~ inception std 0.087 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 7 (calf1): mean ssim: 0.75, mean rmse: 9.24, mean psnr: 22.50,          mean fsim: 0.64, mean uiq: 0.87, Fake Inception: 1.200 ~ inception std 0.170, Real Inception: 1.164 ~ inception std 0.141 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 8 (mole): mean ssim: 0.79, mean rmse: 9.04, mean psnr: 23.23,          mean fsim: 0.72, mean uiq: 0.89, Fake Inception: 1.121 ~ inception std 0.082, Real Inception: 1.442 ~ inception std 0.156 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 8 (mole): mean ssim: 0.79, mean rmse: 9.04, mean psnr: 23.23,          mean fsim: 0.72, mean uiq: 0.89, Fake Inception: 1.118 ~ inception std 0.081, Real Inception: 1.397 ~ inception std 0.210 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Class 9 (stirrup): mean ssim: 0.78, mean rmse: 9.39, mean psnr: 21.63,          mean fsim: 0.71, mean uiq: 0.91, Fake Inception: 1.107 ~ inception std 0.056, Real Inception: 1.626 ~ inception std 0.330 ,classification acc: 100.0%, classification type acc: 100.0%, 
+Class 9 (stirrup): mean ssim: 0.78, mean rmse: 9.39, mean psnr: 21.63,          mean fsim: 0.71, mean uiq: 0.91, Fake Inception: 1.094 ~ inception std 0.064, Real Inception: 1.626 ~ inception std 0.330 ,classification acc: 100.0%, classification type acc: 100.0%, 
          mean F1 1.00, mean recall 1.00, mean precision 1.00 , 
          mean type F1 1.00, mean type recall 1.00, mean type precision 1.00 
    
-Average Class Results: mean ssim: 0.80, mean rmse: 9.18, mean psnr: 22.36,     mean fsim: 0.70, mean uiq: 0.92, mean classification acc: 100.0% ,mean type classification acc: 100.0% 
-     Fake mean inception: 1.31 ~ mean stds: 0.13 | Real mean inception: 1.38 ~ mean stds: 0.15 | Overall Fake inception: 2.59 ~ Overall stds: 0.35 | Overall Real inception: 7.12 ~ Overall stds: 0.54
+Average Class Results: mean ssim: 0.80, mean rmse: 9.17, mean psnr: 22.36,     mean fsim: 0.70, mean uiq: 0.92, mean classification acc: 100.0% ,mean type classification acc: 100.0% 
+     Fake mean inception: 1.29 ~ mean stds: 0.15 | Real mean inception: 1.35 ~ mean stds: 0.17 | Overall Fake inception: 2.58 ~ Overall stds: 0.34 | Overall Real inception: 6.68 ~ Overall stds: 0.60
      mean F1: 1.00, mean recall: 1.00, mean precision: 1.00 
      mean type F1: 1.00, mean type recall: 1.00, mean type precision: 1.00 
         

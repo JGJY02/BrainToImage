@@ -8,8 +8,8 @@ import numpy as np
 main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
 os.chdir(main_dir) #Jared Edition
 
-save_path = "trained_models/Transformer_512_dual/" #"results/CNN_ACGAN_B_128_ori/" # 
-hist_file = "trained_models/Transformer_512_dual/results.npy"  #CNN_all_stacked_signals_dual_128_ori/history_CNN_all_stacked_signals_dual_128_ori_final.pkl
+save_path = "trained_models/Transformer_512_dual_large_vgg/" #"results/CNN_ACGAN_B_128_ori/" # 
+hist_file = "trained_models/Transformer_512_dual_large_vgg/results.npy"  #CNN_all_stacked_signals_dual_128_ori/history_CNN_all_stacked_signals_dual_128_ori_final.pkl
 
 data = np.load(hist_file, allow_pickle = True).item()
 
@@ -62,6 +62,8 @@ def plot_graph(data, data1, data2, data3, lossPlot = True):
 
         save_name = "acc_plots.png"
         # First plot
+        print(data[data1[0]])
+        print(data1[0])
         axs[0].plot(iterations, data[data1[0]], color='blue')
         axs[0].plot(iterations, data[data1[1]], color='red')
         text_to_print_1 = f"{data1[2]} \n Final Train: {data[data1[0]][-1]*100:.2f} ~ Val: {data[data1[1]][-1]*100:.2f}"

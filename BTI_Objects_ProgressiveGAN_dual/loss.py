@@ -13,7 +13,6 @@ from keras.layers import (BatchNormalization, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, LeakyReLU, Reshape,
                           UpSampling2D, ZeroPadding2D, multiply, concatenate)
 import config
-import torch
 
 
 
