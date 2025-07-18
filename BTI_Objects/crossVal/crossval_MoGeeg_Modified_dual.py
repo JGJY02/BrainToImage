@@ -165,12 +165,12 @@ parser.add_argument('--num_of_folds', type=int, help="Number of folds", default 
 
 #Model specific settings (Tune These)
 parser.add_argument('--latent_size', type=int, help="Size of the latent, 128 or 512", default = 512, required=False)
-parser.add_argument('--classifierName', type = str, help = "CNN_all_stacked_signals_dual_128 or CNN_all_stacked_signals_dual_512_28_ori or LSTM_all_stacked_signals_dual_512_64_ori or Transformer_all_stacked_signals", default = "CNN_all_stacked_signals_dual_512_28_ori")
-parser.add_argument('--fold_indexes', type=str, help="Obtain indexes of fold", default = "trained_models/classifiers/crossVal/All/000thresh/CNN_all_stacked_signals_dual_512_28_ori/saved_indexes.npy" , required=False)
-parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "CNN")
-parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "CNN_encoder")
-parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "AC",required=False)
-parser.add_argument('--model_type', type=str, help="M,B,C", default= "B", required=False)
+parser.add_argument('--classifierName', type = str, help = "CNN_all_stacked_signals_dual_128 or CNN_all_stacked_signals_dual_512_28_ori or LSTM_all_stacked_signals_dual_512_64_ori or Transformer_all_stacked_signals", default = "LSTM_all_stacked_signals_dual_512_64_ori")
+parser.add_argument('--fold_indexes', type=str, help="Obtain indexes of fold", default = "trained_models/classifiers/crossVal/All/000thresh/LSTM_all_stacked_signals_dual_512_64_ori/saved_indexes.npy" , required=False)
+parser.add_argument('--classifierType', type = str, help = "CNN or LSTM or Transformer", default = "LSTM")
+parser.add_argument('--datasetType', type = str, help = "CNN_encoder or LSTM_encoder or Transformer_encoder", default = "LSTM_encoder")
+parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "CAPS",required=False)
+parser.add_argument('--model_type', type=str, help="M,B,C", default= "C", required=False)
 
 args = parser.parse_args()
 
@@ -509,8 +509,9 @@ for i in range(args.num_of_folds):
 
     # Create combined EEGGan model.
 
+    discriminator_val.set_weights(discriminator.get_weights())
     generator_val.set_weights(generator.get_weights())
-    combined_val = build_EEGgan(eeg_encoding_dim,generator,discriminator)
+    combined_val = build_EEGgan(eeg_encoding_dim,generator_val,discriminator_val)
     combined_val.set_weights(combined.get_weights())
 
 
@@ -571,7 +572,7 @@ for i in range(args.num_of_folds):
         
         ## Prediction on original images
 
-        validitys_true, labels_true_pred, labels_type_true_pred  = discriminator.predict([true_images], batch_size=32)
+        validitys_true, labels_true_pred, labels_type_true_pred  = discriminator_val.predict([true_images], batch_size=32)
 
         generated_samples = generated_samples*127.5 + 127.5
         generated_samples = np.clip(generated_samples,0,255)
@@ -877,15 +878,15 @@ mean_fold /= args.num_of_folds
 
 text_to_save = []
 
-print(mean_per_class)
-print(mean_per_class.shape)
+# print(mean_per_class)
+# print(mean_per_class.shape)
 
-print(mean_fold)
-print(mean_fold.shape)
+# print(mean_fold)
+# print(mean_fold.shape)
 for lab in range(class_primary_labels):
     
     mean_class = mean_per_class[lab, :]    
-    text_to_print = f"Class {labs} ({label_dictionary[labs]}): mean ssim: {mean_class[0]:.2f}, mean rmse: {mean_class[1]:.2f}, mean psnr: {mean_class[2]:.2f},  \
+    text_to_print = f"Class {lab} ({label_dictionary[lab]}): mean ssim: {mean_class[0]:.2f}, mean rmse: {mean_class[1]:.2f}, mean psnr: {mean_class[2]:.2f},  \
             mean fsim: {mean_class[3]:.2f}, mean uiq: {mean_class[4]:.2f}, Fake Inception: {mean_class[5]:.3f} ~ inception std {mean_class[6]:.3f}, Real Inception: {mean_class[7]:.3f} ~ inception std {mean_class[8]:.3f} ,classification acc: {mean_class[9]:.1%}, classification type acc: {mean_class[10]:.1%}, \n \
             mean F1 {mean_class[11]:.2f}, mean recall {mean_class[12]:.2f}, mean precision {mean_class[13]:.2f} , \n \
             mean type F1 {mean_class[14]:.2f}, mean type recall {mean_class[15]:.2f}, mean type precision {mean_class[16]:.2f} \n   "

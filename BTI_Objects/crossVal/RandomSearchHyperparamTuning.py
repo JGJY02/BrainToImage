@@ -31,6 +31,7 @@ from sklearn.model_selection import RandomizedSearchCV
 from scipy.stats import randint, uniform
 from scikeras.wrappers import KerasClassifier
 
+import pandas as pd
 
 #Argument parser 
 parser = argparse.ArgumentParser(description="Process some variables.")
@@ -39,7 +40,7 @@ parser.add_argument('--input_dir', type=str, help="Directory to the dataset", de
 parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
 parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "windowed" , required=False)
 parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals_dual_512_28_ori", required=False)
-parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/classifiers",required=False)
+parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/classifiers/crossVal",required=False)
 parser.add_argument('--latent_size', type=int, help="Size of the latent, 128 or 512", default = 512, required=False)
 
 args = parser.parse_args()
@@ -163,3 +164,14 @@ Y = {
 }
 
 random_search.fit(x_train, Y)
+
+print("Best Parameters:", random_search.best_params_)
+print("Best Score:", random_search.best_score_)
+
+## Save fold results
+main_save_dir = os.path.join(output_dir_path, args.input_dir,f"{run_id}",model_name)
+results_df = pd.DataFrame(random_search.cv_results_)
+print(results_df.head())  # Show first few rows
+
+# Optional: Save to CSV
+results_df.to_csv(f"{main_save_dir}/random_search_results.csv", index=False)
