@@ -1,4 +1,4 @@
-**# This folder consists of all the codes relating to:**
+# **This folder consists of all the codes relating to:**
   - Dataset preprocessing Code
   - CNN, LSTM and Transformer Dataset Formatting
   - CNN and LSTM Encoder Training
