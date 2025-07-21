@@ -2,32 +2,22 @@
 
 Accepted KDD 2023: https://arxiv.org/pdf/2308.00454.pdf
 ## Overview
-EEGViT is a hybrid Vision Transformer (ViT) incorporated with Depthwise Convolution in patch embedding layers. This work is based on 
-Dosovitskiy, et al.'s ["An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale"](https://arxiv.org/abs/2010.11929). After finetuning EEGViT pretrained on ImageNet, it achieves a considerable improvement over the SOTA on the Absolute Position task in EEGEyeNet dataset.
-
-This repository consists of four models: ViT pretrained and non-pretrained; EEGViT pretrained and non-pretrained. The pretrained weights of ViT layers are loaded from [huggingface.co](https://huggingface.co/docs/transformers/model_doc/vit).
+This is a modified version of the original EEGViT which can be found [here](https://github.com/ruiqiRichard/EEGViT)
 
 ## Dataset download
-Download data for EEGEyeNet absolute position task
-```bash
-wget -O "./dataset/Position_task_with_dots_synchronised_min.npz" "https://osf.io/download/ge87t/"
-```
-For more details about EEGEyeNet dataset, please refer to ["EEGEyeNet: a Simultaneous Electroencephalography and Eye-tracking Dataset and Benchmark for Eye Movement Prediction"](https://arxiv.org/abs/2111.05100) and [OSF repository](https://osf.io/ktv7m/)
+Dataset is obtained using the codes from BTI_Objects. The instrucitons on obtaining the dataset can be found there as well. Once obtained move the dataset into dataset
 
-## Installation
+## Running Training
+  1. run run_dualClass.py
+  2. Done!
 
-### Requirements
+Once training is complete, ensure that the transformer model is moved into trained_models/classifiers/All/000thresh/
 
-First install the general_requirements.txt
+## Running Evaluation 
+  1. Go to eval
+  2. run **eval_gan_eeg_per_class_dual.py** for Most significant channel or run **obtain_loss_and_acc_plots.py** to obtain loss and accuracy plots of model
+  3. Results can be found under results!
 
-```bash
-pip3 install -r general_requirements.txt 
-```
+Evaluation of the transformer can be found under th BTI_Objects_ProgressiveGAN_dual as it evaluate the whole pipeline.
 
-### Pytorch Requirements
 
-```bash
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
-```
-
-For other installation details and different cuda versions, visit [pytorch.org](https://pytorch.org/get-started/locally/).
