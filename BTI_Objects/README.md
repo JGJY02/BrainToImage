@@ -20,10 +20,10 @@ To perform dataset preprocessing Take the following steps
   
 To perform CNN and LSTM Encoder Training
   1. Go to train folder
-  2. Run train_Decoder_dual.py with the relevant settings set in argparse
+  2. Run train_encoderClassifier_dual.py with the relevant settings set in argparse
   3. Done!
 
 To perform ACGAN, DCGAN and CapsGAN Training
   1. Go to train folder
-  2. Run train_encoderClassifier_dual.py with the relevant settings set in argparse
+  2. Run train_Decoder_dual.py with the relevant settings set in argparse
   3. Done!
