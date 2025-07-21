@@ -19,7 +19,7 @@
  If running the ViT model take the Transformer dataset produced in processed_dataset/filter_mne_car and bring it to EEGViT_Personal folder
   
 ## **To perform CNN and LSTM Encoder Training**
-  1. Go to **train** folder
+  1. Go to **train** folder 
   2. Run **train_encoderClassifier_dual.py** with the relevant settings set in argparse
   3. Done!
 
@@ -37,3 +37,6 @@
   1. Go to **crossVal** folder
   2. Run **crossval_Encoder_dual.py / crossval_Decoder_dual.py** (Note that before crossval_decoder_dual can be runned the corresponding crossval_encoder must exist, so for example to train LSTM-DCGAN crossval you need to have run the crossval_encoder_dual.py for the LSTM model)
   3. Done!
+
+
+
