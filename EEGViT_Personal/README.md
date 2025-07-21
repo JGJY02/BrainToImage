@@ -1,10 +1,9 @@
 ## EEG-Vision Transformer (EEGViT)
 
-Accepted KDD 2023: https://arxiv.org/pdf/2308.00454.pdf
 ## Overview
 This is a modified version of the original EEGViT which can be found [here](https://github.com/ruiqiRichard/EEGViT)
 
-## Dataset download
+## Dataset to use
 Dataset is obtained using the codes from BTI_Objects. The instrucitons on obtaining the dataset can be found there as well. Once obtained move the dataset into dataset
 
 ## Running Training
