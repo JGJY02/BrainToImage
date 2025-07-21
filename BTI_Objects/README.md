@@ -6,7 +6,7 @@ This folder consists of all the codes relating to:
   - Model Evaluation for CNN and LSTM encoders and ACGAN, DCGAN and CapsGAN models
   - Cross-validation for CNN and LSTM encoders and ACGAN, DCGAN and CapsGAN models
 
-To perform dataset preprocessing Take the following steps
+**To perform dataset preprocessing Take the following steps**
   1. Create a folder raw_dataset
   2. Place the EEG Things folder and the Things Dataset into it. The folders should have the file paths raw_dataset/EEG_dataset for the Things EEG dataset and raw_dataset raw_dataset/object_dataset for the Images from the Things         dataset
      - Things EEG Dataset [link](https://osf.io/hd6zk/) : dataset [link](https://openneuro.org/datasets/ds003825/versions/1.2.0) 
@@ -18,12 +18,12 @@ To perform dataset preprocessing Take the following steps
 
  If running the ViT model take the Transformer dataset produced in processed_dataset/filter_mne_car and bring it to EEGViT_Personal folder
   
-To perform CNN and LSTM Encoder Training
+**To perform CNN and LSTM Encoder Training**
   1. Go to train folder
   2. Run train_encoderClassifier_dual.py with the relevant settings set in argparse
   3. Done!
 
-To perform ACGAN, DCGAN and CapsGAN Training
+**To perform ACGAN, DCGAN and CapsGAN Training**
   1. Go to train folder
   2. Run train_Decoder_dual.py with the relevant settings set in argparse
   3. Done!
