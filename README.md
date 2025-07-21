@@ -33,5 +33,5 @@ BTI_Objects
 **<u> LSTM - DCGAN - 512 and LSTM - DCGAN - 512 </u>**  
 BTI_Objects
 
-**<u> ViT - ProGAN - 512 </u> ** 
+**<u> ViT - ProGAN - 512 </u>** 
 BTI_Objects -> EEGViT_Personal -> BTI_Objects_ProgressiveGAN_dual
