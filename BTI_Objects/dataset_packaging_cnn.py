@@ -39,7 +39,7 @@ parser.add_argument('--car_filter_percent', type=float, help="ratio to filter ba
 parser.add_argument('--filter_from_scratch', type = bool, help="Filter from scratch or load processed file", default = True)
 parser.add_argument('--classesToTake', type = int, help="Number of unique images to take for each class", default = 2)
 
-parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllSlidingCNN_dual_28_ori", required=False)
+parser.add_argument('--output_prefix', type=str, help="Name of the output file produced", default= "thresh_AllSlidingCNN_dual_64", required=False)
 parser.add_argument('--output_dir', type=str, help="output directory", default = "filter_mne_car/CNN_encoder",required=False)
 
 parser.add_argument('--create_unseen', type=bool, help="Create Unseen", default= False, required=False)
@@ -120,13 +120,12 @@ fraction = 1
 #sampled_df.info()
 
 scales = np.arange(0.4, 60, 0.233)
-WINDOW_SIZE = 30
-img_size = (28,28)
+WINDOW_SIZE = 32
+img_size = (64,64)
 
 obj_images_comp = []
 feature_data_comp = []
 label_data_comp = []
-secondary_label_comp = []
 files = files
 
 
@@ -134,49 +133,51 @@ files = files
 splitPercent = 0.2
 
 
-
 train_obj_images_comp = []
 train_feature_data_comp = []
 train_label_data_comp = []
+train_seconday_label_data_comp = []
 
 test_obj_images_comp = []
 test_feature_data_comp = []
 test_label_data_comp = []
-
+test_seconday_label_data_comp = []
 
 
 for file in files:
     print(f"On current file {file}")
-    obj_images = []
-    feature_data = []
-    label_data = []
-    secondary_label_array = []
+    # obj_images = []
+    # feature_data = []
+    # label_data = []
 
-    # train_feature_array = []
-    # train_label_array = []
-    # train_img_array = []
+    train_feature_array = []
+    train_label_array = []
+    train_secondary_label_array = []
 
-    # test_feature_array = []
-    # test_label_array = []
-    # test_img_array = []
+    train_img_array = []
+
+    test_feature_array = []
+    test_label_array = []
+    test_secondary_label_array = []
+
+    test_img_array = []
 
     df = pd.read_pickle(f"{dataset_dir_path}/{file}") #filtered_{output_file}")
     # sampled_indexes = df_copy[df_copy['corr_mean_all'] > args.car_filter_percent].groupby(label).apply(lambda x: x.sample(frac=fraction)).index.get_level_values(1).tolist()
     # sampled_df = df_copy.loc[sampled_indexes]
     sampled_df = df_copy
-    
-    print(sampled_df[label].value_counts())
-    print(sampled_df[label].value_counts().sum())
-    
+
     for class_label in tqdm(softmax_labels):
         class_df = sampled_df[sampled_df[label]== softmax_dict[class_label]]
 
         dir_to_extract_images = os.path.join(args.img_root_dir, softmax_dict[class_label])
-        
         for idx, row in class_df.iterrows():
             X = row[list_of_keys]
             img_name =row['object_name']
             X = np.array(X.tolist(), dtype=np.float32)
+
+            num_of_test_samples = int(len(range(X.shape[1] - WINDOW_SIZE + 1)) * splitPercent)
+            test_sample_idx = np.random.choice(len(range(X.shape[1] - WINDOW_SIZE + 1)), size = num_of_test_samples, replace = False)
 
             #Obtain secondary Class for specific Classification
             img_path = os.path.join(dir_to_extract_images, img_name)
@@ -185,42 +186,113 @@ for file in files:
             secondary_class_label = number - 1 #Set it between 0 to 11
 
             if secondary_class_label in type_labels: #only take images from the sepcified range of classes
-                for key in list_of_keys:
-                    w_data = hf.sliding_window_eeg(row[key])
-                    img_path = os.path.join(dir_to_extract_images, img_name)
+                for i in range(X.shape[1] - WINDOW_SIZE + 1):
+                    w_data = X[:, i:i+WINDOW_SIZE]
+                    # w_data = np.transpose(w_data, (1,0))
+                    # print(w_data.dtype)
+                    
+                    # print(w_data.shape)
+                    # feature_data.append(w_data)
+                    # label_data.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
+
+                    
+                    # img_path = os.path.join(dir_to_extract_images, img_name)
+                    # try:
+                    #     img = Image.open(img_path).resize(img_size)
+                    #     img_array = np.array(img)  # Normalize
+
+                    #     obj_images.append(img_array)
+
+                    # except Exception as e:
+                    #     print(f"Error loading {img_path}: {e}")
+
+
                     try:
                         img = Image.open(img_path).resize(img_size)
                         img_array = np.array(img)  # Normalize
                     except Exception as e:
                         print(f"Error loading {img_path}: {e}")
 
-                    obj_images.append(img_array)
-                    feature_data.append(w_data)
-                    label_data.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
-                    secondary_label_array.append(to_categorical(int(secondary_class_label),num_classes=len(type_labels)))
+                    # print(i)
+                    # print(i not in test_sample_idx)
 
+                    if i not in test_sample_idx:
+                        train_feature_array.append(w_data)
+                        train_label_array.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
+                        train_secondary_label_array.append(to_categorical(int(secondary_class_label),num_classes=len(type_labels)))
+                        train_img_array.append(img_array)
+                    
+                    else:
+                        test_feature_array.append(w_data)
+                        test_label_array.append(to_categorical(int(class_label),num_classes=len(softmax_labels)))
+                        test_secondary_label_array.append(to_categorical(int(secondary_class_label),num_classes=len(type_labels)))
+                        test_img_array.append(img_array)
                 
 
     
-    obj_images_comp.append(np.array(obj_images))
-    feature_data_comp.append(np.array(feature_data))
-    label_data_comp.append(np.array(label_data))
-    secondary_label_comp.append(np.array(secondary_label_array))
+    # obj_images_comp.append(np.array(obj_images))
+    # feature_data_comp.append(np.array(feature_data))
+    # label_data_comp.append(np.array(label_data))
+
+    train_obj_images_comp.append(np.array(train_img_array))
+    train_feature_data_comp.append(np.array(train_feature_array))
+    train_label_data_comp.append(np.array(train_label_array))
+    train_seconday_label_data_comp.append(np.array(train_secondary_label_array))
 
 
-obj_images_comp = np.vstack(obj_images_comp)
-feature_data_comp = np.vstack(feature_data_comp)
-label_data_comp = np.vstack(label_data_comp)
-secondary_label_comp = np.vstack(secondary_label_comp)
+    test_obj_images_comp.append(np.array(test_img_array))
+    test_feature_data_comp.append(np.array(test_feature_array))
+    test_label_data_comp.append(np.array(test_label_array))
+    test_seconday_label_data_comp.append(np.array(test_secondary_label_array))
+
+# obj_images_comp = np.vstack(obj_images_comp)
+# feature_data_comp = np.vstack(feature_data_comp)
+# label_data_comp = np.vstack(label_data_comp)
+
+train_obj_images_comp = np.vstack(train_obj_images_comp)
+train_feature_data_comp = np.vstack(train_feature_data_comp)
+train_label_data_comp = np.vstack(train_label_data_comp)
+train_seconday_label_data_comp = np.vstack(train_seconday_label_data_comp)
+
+
+test_obj_images_comp = np.vstack(test_obj_images_comp)
+test_feature_data_comp = np.vstack(test_feature_data_comp)
+test_label_data_comp = np.vstack(test_label_data_comp)
+test_seconday_label_data_comp = np.vstack(test_seconday_label_data_comp)
+
+
+x_train_eeg = np.array(train_feature_data_comp)
+x_train_img = np.array(train_obj_images_comp)
+y_train = np.array(train_label_data_comp).astype(np.uint8)
+y_secondary_train = np.array(train_seconday_label_data_comp).astype(np.uint8)
+
+
+x_test_eeg = np.array(test_feature_data_comp)
+x_test_img = np.array(test_obj_images_comp)
+y_test = np.array(test_label_data_comp).astype(np.uint8)
+y_secondary_test = np.array(test_seconday_label_data_comp).astype(np.uint8)
+
+#Shuffle the arrays
+train_shuffled_indices = np.random.permutation(x_train_eeg.shape[0])
+test_shuffled_indices = np.random.permutation(x_test_eeg.shape[0])
+
+x_train_eeg = x_train_eeg[train_shuffled_indices]
+x_train_img = x_train_img[train_shuffled_indices]
+y_train = y_train[train_shuffled_indices]
+y_secondary_train = y_secondary_train[train_shuffled_indices]
+
+x_test_eeg = x_test_eeg[test_shuffled_indices]
+x_test_img = x_test_img[test_shuffled_indices]
+y_test = y_test[test_shuffled_indices]
+y_secondary_test = y_secondary_test[test_shuffled_indices]
 
 
 
-train_data_1 = np.array(feature_data_comp)
-train_data_2 = np.array(obj_images_comp)
-labels = np.array(label_data_comp).astype(np.uint8)
-secondary_labels = np.array(secondary_label_comp).astype(np.uint8)
+# train_data_1 = np.array(feature_data_comp)
+# train_data_2 = np.array(obj_images_comp)
+# labels = np.array(label_data_comp).astype(np.uint8)
 
-x_train_eeg, x_test_eeg, x_train_img, x_test_img, y_train, y_test, y_secondary_train, y_secondary_test = train_test_split(train_data_1, train_data_2, labels, secondary_labels, test_size=0.1, random_state=42)
+# x_train_eeg, x_test_eeg, x_train_img, x_test_img, y_train, y_test = train_test_split(train_data_1, train_data_2, labels, test_size=0.1, random_state=42)
 
 print(f"The dimensions of each dataset is x_train_eeg: {x_train_eeg.shape}, x_test_eeg: {x_test_eeg.shape}, x_train_img: {x_train_img.shape}, x_test_eeg: {x_test_img.shape} , y_test: {y_test.shape} , y_train: {y_train.shape} , y_secondary_train: {y_secondary_train.shape}, y_secondary_test: {y_secondary_test.shape}")
 

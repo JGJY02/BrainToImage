@@ -184,7 +184,7 @@ def train_progressive_gan(
     mirror_augment          = False,        # Enable mirror augment?
     drange_net              = [-1,1],       # Dynamic range used when feeding image data to the networks.
     image_snapshot_ticks    = 1,            # How often to export image snapshots?
-    network_snapshot_ticks  = 5,           # How often to export network snapshots?
+    network_snapshot_ticks  = 10,           # How often to export network snapshots?
     save_tf_graph           = False,        # Include full TensorFlow computation graph in the tfevents file?
     save_weight_histograms  = False,        # Include weight histograms in the tfevents file?
     resume_run_id           = None,         # Run ID or network pkl to resume training from, None = start from scratch.
@@ -194,9 +194,10 @@ def train_progressive_gan(
 
     maintenance_start_time = time.time()
     print(config.data_dir)
-    # class_labels = [0,1,2,3,4,5,6,7,8,9]
 
     training_set = dataset.load_dataset(data_dir=config.data_dir, verbose=True, **config.dataset)
+
+    #Consider removing as potentially may not be useful anymore
 
     # Load VGG16 model without the top classification layers
     vgg = VGG16(weights='imagenet', include_top=False, input_shape=(64, 64, 3))
@@ -229,7 +230,6 @@ def train_progressive_gan(
 
     
     encoder_model = 0
-    ## ENd of Jared ADdition
 
 
 

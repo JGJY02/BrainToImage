@@ -13,7 +13,7 @@ from keras.optimizers import Adam
 from keras.utils import to_categorical
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model_128_dual, LSTM_Classifier_dual_512, convolutional_encoder_model_512_dual
+from models.dual_models.eegclassifier import convolutional_encoder_model_128_dual, LSTM_Classifier_dual_512, convolutional_encoder_model_512_dual
 from models.dual_models.eeggan import (build_discriminator, build_EEGgan, build_MoGCgenerator, build_MoGMgenerator, build_generator)
 
 from models.dual_models.dcgan import (build_dc_discriminator, build_DCGgan, build_dc_generator)
@@ -23,7 +23,6 @@ from models.EEGViT_pretrained import (EEGViT_pretrained)
 from models.model_utils import (sample_images_eeg, save_model, combine_loss_metrics)
 
 
-from utils.local_MNIST import get_balanced_mnist_subset, load_local_mnist
 from utils.general_funcs_Jared import use_or_make_dir
 
 import torch
@@ -45,7 +44,7 @@ parser.add_argument('--input_dir', type=str, help="Directory to the dataset", de
 parser.add_argument('--classifier_path', type=str, help="directory to the classifier", default= "trained_models/classifiers", required=False)
 parser.add_argument('--classifier_model', type=str, help="Name of the model", default= "eeg_classifier_adm5", required=False)
 parser.add_argument('--GAN_type', type=str, help="DC or AC or CAPS", default = "CAPS",required=False)
-parser.add_argument('--model_type', type=str, help="M,B,C", default= "C", required=False)
+parser.add_argument('--GAN_SubType', type=str, help="Only Relevant if using ACGAN model, Types available: M,B,C", default= "C", required=False)
 parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/GANs",required=False)
 
 parser.add_argument('--ClassifierImplementation', type = str, help = "TF or Torch", default = "TF")
@@ -62,36 +61,34 @@ parser.add_argument('--save_interval', type=int, help="how many epochs before sa
 
 args = parser.parse_args()
 
+#Setup variables
 batch_size = args.batch_size
 epochs = args.epochs
 save_interval = args.save_interval
-generator_type = args.model_type #C for concatenation M for Multiplication B for Basic
-
-
-
-class_labels = [0,1,2,3,4,5,6,7,8,9]
 eeg_encoding_dim = args.latent_size
 
 
+class_labels = [0,1,2,3,4,5,6,7,8,9]
 
+generator_type = args.GAN_SubType #C for concatenation M for Multiplication B for Basic
 if args.GAN_type == "AC":
     if generator_type == "B":
-        model_type = "Basic"
+        GAN_SubType = "Basic"
     else:
-        model_type = f"MoG{generator_type}"
+        GAN_SubType = f"MoG{generator_type}"
 
-else: model_type = args.GAN_type
+else: GAN_SubType = args.GAN_type
 
 
 indexes = [i for i, char in enumerate(args.dataset_pickle) if char == '_']
 run_id = args.dataset_pickle[:indexes[0]] #"90thresh_"# "example_data_" #Extract the prefix to be used as the run id
-classifier_id = f"{run_id}_{args.epochs}_{args.classifierName}_{model_type}"
+classifier_id = f"{run_id}_{args.epochs}_{args.classifierName}_{GAN_SubType}"
 
 #Output save path name
-model_save_path = f"{args.output_dir}/{args.classifierType}_GAN/{args.GAN_type}/{run_id}_{model_type}_{eeg_encoding_dim}"
+model_save_path = f"{args.output_dir}/{args.classifierType}_GAN/{args.GAN_type}/{run_id}_{GAN_SubType}_{eeg_encoding_dim}"
 model_save_path_imgs = f"{model_save_path}/imgs"
 
-#Generate classifier path name
+#Generate classifier path name depending if implementation is torch or TF
 if args.ClassifierImplementation == "TF":
     classifier_model_path = f"{args.classifier_path}/{args.input_dir}/{run_id}/{args.classifierName}/eeg_classifier_adm5_final.h5"
 elif args.ClassifierImplementation == "Torch":
@@ -112,63 +109,62 @@ print("Taking Classifier from : ", classifier_model_path)
 valid = np.ones((batch_size, 1))
 fake = np.zeros((batch_size, 1))
 
-## load the MNIST trainig data
+## EEG data
 eeg_data_dir = f"{args.root_dir}/{args.datasetType}/{args.input_dir}"
 eeg_data_file = f"{eeg_data_dir}/{args.dataset_pickle}"
 print(f"** Reading data file {eeg_data_file}")
-object_data = pickle.load(open(f"{eeg_data_file}", 'rb'), encoding='bytes')
-(x_train, y_train, y_secondary_train) , (x_test, y_test, y_secondary_test) = (object_data['x_train_img'], object_data['y_train'], object_data['y_secondary_train']) , (object_data['x_test_img'], object_data['y_test'], object_data['y_secondary_test'])
+eeg_data = pickle.load(open(f"{eeg_data_file}", 'rb'), encoding='bytes')
+(x_imgs_train, y_primary_train, y_secondary_train) , (x_imgs_test, y_primary_test, y_secondary_test) = (eeg_data['x_train_img'], eeg_data['y_train'], eeg_data['y_secondary_train']) , (eeg_data['x_test_img'], eeg_data['y_test'], eeg_data['y_secondary_test'])
+x_eeg_train, x_eeg_test = eeg_data['x_train_eeg'],  eeg_data['x_test_eeg']
 
-x_train = (np.array(x_train) - 127.5) / 127.5
-x_test = (np.array(x_test) - 127.5) / 127.5
-print((x_train.shape[1],x_train.shape[2],x_train.shape[3]))
+x_imgs_train = (np.array(x_imgs_train) - 127.5) / 127.5
+x_imgs_test = (np.array(x_imgs_test) - 127.5) / 127.5
 
-num_of_class_labels = y_train.shape[1]
+num_of_class_labels = y_primary_train.shape[1]
 num_of_class_type_labels = y_secondary_train.shape[1]
-## load the eeg training data
 
 # dataset = "2022Data"
 
 print(f"Reading data file {eeg_data_file}")
-eeg_data = pickle.load(open(f"{eeg_data_file}", 'rb'), encoding='bytes')
-#x_train, y_train, x_test, y_test = eeg_data['x_train'], eeg_data['y_train'], eeg_data['x_test'  ], eeg_data['y_test'  ]
 ## ################
 ## Create GAN model
 ## ################
+
 gan_optimizer = Adam(0.0002, 0.5, decay=1e-6)
 discrim_losses = ['binary_crossentropy', 'sparse_categorical_crossentropy', 'sparse_categorical_crossentropy']  #sparse_
 gen_losses = ['mse']
+
 # build discriminator sub model
-print("Shape of training is")
-print((x_train.shape[1],x_train.shape[2],x_train.shape[3]))
+print("Shape of training images is")
+print((x_imgs_train.shape[1],x_imgs_train.shape[2],x_imgs_train.shape[3]))
 
 print(f"** Training model for type: {args.GAN_type}")
 if args.GAN_type == "AC":
-    print(f"*** Training sub model for type: {args.model_type}")
+    print(f"*** Training sub model for type: {args.GAN_SubType}")
 
-    discriminator = build_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
+    discriminator = build_discriminator((x_imgs_train.shape[1],x_imgs_train.shape[2],x_imgs_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
     discriminator.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accuracy'])
     # build generator sub model
-
     if generator_type == "C":
-        generator = build_MoGCgenerator(eeg_encoding_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+        generator = build_MoGCgenerator(eeg_encoding_dim,x_imgs_train.shape[3],num_of_class_labels, num_of_class_type_labels)
     elif generator_type == "M":
-        generator = build_MoGMgenerator(eeg_encoding_dim,x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+        generator = build_MoGMgenerator(eeg_encoding_dim,x_imgs_train.shape[3],num_of_class_labels, num_of_class_type_labels)
     elif generator_type == "B":
-        generator = build_generator(eeg_encoding_dim,    x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+        generator = build_generator(eeg_encoding_dim,    x_imgs_train.shape[3],num_of_class_labels, num_of_class_type_labels)
 
     generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
+
 elif args.GAN_type == "DC":
-    discriminator = build_dc_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
+    discriminator = build_dc_discriminator((x_imgs_train.shape[1],x_imgs_train.shape[2],x_imgs_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
     discriminator.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accuracy'])
-    generator = build_dc_generator(eeg_encoding_dim, x_train.shape[3],num_of_class_labels, num_of_class_type_labels)
+    generator = build_dc_generator(eeg_encoding_dim, x_imgs_train.shape[3],num_of_class_labels, num_of_class_type_labels)
     generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
 
 elif args.GAN_type == "CAPS":
 
-    discriminator, _, _ = build_caps_discriminator((x_train.shape[1],x_train.shape[2],x_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
+    discriminator, _, _ = build_caps_discriminator((x_imgs_train.shape[1],x_imgs_train.shape[2],x_imgs_train.shape[3]),num_of_class_labels, num_of_class_type_labels)
     discriminator.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accuracy'])
-    generator = build_dccaps_generator(eeg_encoding_dim, x_train.shape[3], num_of_class_labels, num_of_class_type_labels)
+    generator = build_dccaps_generator(eeg_encoding_dim, x_imgs_train.shape[3], num_of_class_labels, num_of_class_type_labels)
     generator.compile(loss=gen_losses, optimizer=gan_optimizer, metrics=['accuracy'])
 
 # prime generator.
@@ -177,14 +173,14 @@ label = Input(shape=(1,), dtype=tf.int32)
 label_type = Input(shape=(1,), dtype=tf.int32)
 
 img = generator([noise, label, label_type])
-print("Shape of image is ", img.shape)
+
 # set discriminator used in combined model to none trainable.
 discriminator.trainable = False
 
 if args.GAN_type == "CAPS":
-    masking_label = Input(shape=(len(class_labels),))
+    masking_label = Input(shape=(num_of_class_labels,))
     valid_class, target_label, target_label_type = discriminator([img, masking_label])
-    combined = build_capsGAN(eeg_encoding_dim, len(class_labels), generator, discriminator)
+    combined = build_capsGAN(eeg_encoding_dim, num_of_class_labels, generator, discriminator)
 else:
     valid_class, target_label, target_label_type = discriminator(img)
     combined = build_EEGgan(eeg_encoding_dim, generator, discriminator)
@@ -201,14 +197,13 @@ combined.compile(loss=discrim_losses, optimizer=gan_optimizer, metrics=['accurac
 if args.ClassifierImplementation == "TF":
 
     if args.classifierType == "LSTM":
-        classifier = LSTM_Classifier_dual_512(eeg_data['x_train_eeg'].shape[1],  eeg_data['x_train_eeg'].shape[2], 512, num_of_class_labels, num_of_class_type_labels)
+        classifier = LSTM_Classifier_dual_512(x_eeg_train.shape[1],  x_eeg_train.shape[2], 512, num_of_class_labels, num_of_class_type_labels)
 
     elif args.classifierType == "CNN":
-        print(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2])
         if eeg_encoding_dim == 128:
-            classifier = convolutional_encoder_model_128_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+            classifier = convolutional_encoder_model_128_dual(x_eeg_train.shape[1], x_eeg_train.shape[2], num_of_class_labels, num_of_class_type_labels)
         elif eeg_encoding_dim == 512:
-            classifier = convolutional_encoder_model_512_dual(eeg_data['x_train_eeg'].shape[1], eeg_data['x_train_eeg'].shape[2], num_of_class_labels, num_of_class_type_labels)
+            classifier = convolutional_encoder_model_512_dual(x_eeg_train.shape[1], x_eeg_train.shape[2], num_of_class_labels, num_of_class_type_labels)
 
     classifier.load_weights(classifier_model_path)
     layer_names = ['EEG_feature_BN2','EEG_Class_Labels', 'EEG_Class_type_Labels']
@@ -230,15 +225,14 @@ print(f"** Classifier used: {classifier_model_path}")
 
 ## Encode all signals first before training
 if args.ClassifierImplementation == "TF":
-    encoded_eeg_all, encoded_labels_all, encoded_labels_type_all = encoder_model.predict(eeg_data['x_train_eeg'])
+    encoded_eeg_all, encoded_labels_all, encoded_labels_type_all = encoder_model.predict(x_eeg_train)
     
     predicted_labels = np.argmax(encoded_labels_all,axis=1)
     predicted_labels_type = np.argmax(encoded_labels_type_all,axis=1)
 
 elif args.ClassifierImplementation == "Torch":
     with torch.no_grad():
-        # print(eeg_samples.shape)
-        eeg_samples = eeg_data['x_train_eeg'][:,np.newaxis,:,:]
+        eeg_samples = x_eeg_train[:,np.newaxis,:,:]
         tensor_eeg  = torch.from_numpy(eeg_samples).to(device)
         encoded_labels_all, encoded_eeg_all  = encoder_model(tensor_eeg)
         predicted_labels = torch.argmax(encoded_labels_all, dim=1)
@@ -254,70 +248,43 @@ for epoch in range(epochs+1):
     #  Train Discriminator: Discriminator is trained using real and generated images with the goal to identify the difference
     # ---------------------
     # Sample EEG latent space from EEG Classifier as generator input
-    # _train_ run used eeg data from train to predict on, so the model had seen this data.
-    # _test_ run should use data from test as the classifier hasn't seen this data before.
-    sample_indexs = np.random.choice(eeg_data['x_train_eeg'].shape[0], size=batch_size, replace=False)
-    # eeg_samples = eeg_data['x_train_eeg'  ][sample_indexs]
-    encoded_eeg = encoded_eeg_all[sample_indexs]
-    encoded_labels = predicted_labels[sample_indexs]
-    encoded_labels_type = predicted_labels_type[sample_indexs]
-    # The labels of the digits that the generator tries to create an
-    # image representation of
-    sampled_labels = np.argmax(eeg_data['y_train'][sample_indexs],axis=1)
-    sampled_labels_type = np.argmax(eeg_data['y_secondary_train'][sample_indexs],axis=1)
-
-
-    # Select a random batch of REAL images with corresponding lables
-    # from MNIST image data
-    imgs = x_train[sample_indexs]
-    # Image labels. 0-9
-    # img_labels = np.argmax(y_train[sample_indexs], axis=1)
-    # print(img_labels)
+    sample_indexs = np.random.choice(x_eeg_train.shape[0], size=batch_size, replace=False)
     
+    #Extract all processed data from the randomly chosen sampled indexes
+    encoded_eeg = encoded_eeg_all[sample_indexs]
+    encoded_primary_labels = predicted_labels[sample_indexs]
+    encoded_secondary_labels = predicted_labels_type[sample_indexs]
+    
+    # Obtain the corresponding labels for the primary and secondary labels
+    sampled_primary_labels = np.argmax(y_primary_train[sample_indexs],axis=1)
+    sampled_secondary_labels = np.argmax(y_secondary_train[sample_indexs],axis=1)
 
 
-    #sampled_lables = to_categorical(sampled_labels,num_classes=len(class_labels),dtype=np.int32)
-    # if args.ClassifierImplementation == "TF":
-    #     encoded_eeg, encoded_labels = encoder_model.predict(eeg_samples)
-    #     predicted_labels = np.argmax(encoded_labels,axis=1)
-    # elif args.ClassifierImplementation == "Torch":
-    #     with torch.no_grad():
-    #         # print(eeg_samples.shape)
-    #         eeg_samples = eeg_samples[:,np.newaxis,:,:]
-    #         tensor_eeg  = torch.from_numpy(eeg_samples).to(device)
-    #         encoded_labels, encoded_eeg  = encoder_model(tensor_eeg)
-    #         predicted_labels = torch.argmax(encoded_labels, dim=1)
-
-    #         encoded_eeg = encoded_eeg.cpu().numpy()
-    #         predicted_labels = predicted_labels.cpu().numpy()
-    #         encoded_eeg = tf.convert_to_tensor(encoded_eeg)
-    #         predicted_labels = tf.convert_to_tensor(predicted_labels)
+    # Select corresponding Real Images from dataset
+    imgs = x_imgs_train[sample_indexs]
 
     # Generate a half batch of new images
-    gen_imgs = generator.predict([encoded_eeg, encoded_labels, encoded_labels_type])
+    gen_imgs = generator.predict([encoded_eeg, encoded_primary_labels, encoded_secondary_labels])
 
     # Train the discriminator, to recognise real/fake images
-    # loss_real : using real images selected from training data
-    # loss_fake : using images generated by the generator
-    # {'loss': 3.244841694831848, 'Validity_loss': 0.8591426908969879, 'Class_Label_loss': 2.3856990337371826, 'Validity_accuracy': 0.421875, 'Class_Label_accuracy': 0.09375}
     if args.GAN_type == "CAPS":
-        d_loss_real = discriminator.train_on_batch([imgs, y_train[sample_indexs]], [valid, sampled_labels, sampled_labels_type], return_dict=True)
-        d_loss_fake = discriminator.train_on_batch([gen_imgs, encoded_labels_all[sample_indexs]], [fake, encoded_labels, encoded_labels_type], return_dict=True)
+        d_loss_real = discriminator.train_on_batch([imgs, y_primary_train[sample_indexs]], [valid, sampled_primary_labels, sampled_secondary_labels], return_dict=True)
+        d_loss_fake = discriminator.train_on_batch([gen_imgs, encoded_labels_all[sample_indexs]], [fake, encoded_primary_labels, encoded_secondary_labels], return_dict=True)
         d_loss = combine_loss_metrics(d_loss_real, d_loss_fake)
         
-        g_loss_disc = combined.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type, encoded_labels_all[sample_indexs]], [valid, encoded_labels, encoded_labels_type], return_dict=True)
-        g_loss_mse = generator.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type], imgs, return_dict = True)
+        g_loss_disc = combined.train_on_batch([encoded_eeg, encoded_primary_labels, encoded_secondary_labels, encoded_labels_all[sample_indexs]], [valid, encoded_primary_labels, encoded_secondary_labels], return_dict=True)
+        g_loss_mse = generator.train_on_batch([encoded_eeg, encoded_primary_labels, encoded_secondary_labels], imgs, return_dict = True)
         
         g_loss = {'loss' : g_loss_disc['loss'] + g_loss_mse['loss'], 'Discriminator_loss' : g_loss_disc['Discriminator_loss'], 'MSE_loss': g_loss_mse['loss']}
 
 
     else:
-        d_loss_real = discriminator.train_on_batch(imgs, [valid, sampled_labels, sampled_labels_type], return_dict=True)
-        d_loss_fake = discriminator.train_on_batch(gen_imgs, [fake, encoded_labels, encoded_labels_type], return_dict=True)
+        d_loss_real = discriminator.train_on_batch(imgs, [valid, sampled_primary_labels, sampled_secondary_labels], return_dict=True)
+        d_loss_fake = discriminator.train_on_batch(gen_imgs, [fake, encoded_primary_labels, encoded_secondary_labels], return_dict=True)
         d_loss = combine_loss_metrics(d_loss_real, d_loss_fake)
 
-        g_loss_disc = combined.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type], [valid, encoded_labels, encoded_labels_type], return_dict=True)
-        g_loss_mse = generator.train_on_batch([encoded_eeg, encoded_labels, encoded_labels_type], imgs, return_dict = True)
+        g_loss_disc = combined.train_on_batch([encoded_eeg, encoded_primary_labels, encoded_secondary_labels], [valid, encoded_primary_labels, encoded_secondary_labels], return_dict=True)
+        g_loss_mse = generator.train_on_batch([encoded_eeg, encoded_primary_labels, encoded_secondary_labels], imgs, return_dict = True)
 
         g_loss = {'loss' : g_loss_disc['loss'] + g_loss_mse['loss'], 'Discriminator_loss' : g_loss_disc['Discriminator_loss'], 'MSE_loss': g_loss_mse['loss']}
 
@@ -325,7 +292,6 @@ for epoch in range(epochs+1):
     #  Train Generator:
     # ---------------------
     # Train the generator using the combined GAN model so that Generator learns to create better images to fool the discriminator
-    #g_loss = combined.train_on_batch([noise, sampled_labels], [valid, sampled_labels], return_dict=True)
     
 
     history['Discriminator'].append(d_loss)
@@ -336,21 +302,21 @@ for epoch in range(epochs+1):
 
     # If at save interval => save generated image samples
     if epoch % save_interval == 0 or epoch == epochs:
-        save_model(generator, model_type, classifier_id, f"{model_type}_EEG_Generator_{epoch}", main_dir, model_save_path)
-        save_model(discriminator, model_type, classifier_id, f"{model_type}_EEG_Discriminator_{epoch}", main_dir, model_save_path)
-        sample_images_eeg(epoch, gen_imgs, [sampled_labels,encoded_labels], main_dir, model_save_path_imgs)
+        save_model(generator, GAN_SubType, classifier_id, f"{GAN_SubType}_EEG_Generator_{epoch}", main_dir, model_save_path)
+        save_model(discriminator, GAN_SubType, classifier_id, f"{GAN_SubType}_EEG_Discriminator_{epoch}", main_dir, model_save_path)
+        sample_images_eeg(epoch, gen_imgs, [sampled_primary_labels,encoded_primary_labels], main_dir, model_save_path_imgs)
 
 
 
 save_path = model_save_path
 
 print(f"** Saving model to {save_path}")
-with open(os.path.join(save_path,f"{model_type}_EEGGan_history.pkl"),"wb") as f:
+with open(os.path.join(save_path,f"{GAN_SubType}_EEGGan_history.pkl"),"wb") as f:
     pickle.dump(history,f)
 
-combined.save_weights(os.path.join(save_path,f"{model_type}_EEGGan_combined_weights.h5"))
-generator.save_weights(os.path.join(save_path,f"{model_type}_EEGGan_generator_weights.h5"))
-discriminator.save_weights(os.path.join(save_path,f"{model_type}_EEGGan_discriminator_weights.h5"))
+combined.save_weights(os.path.join(save_path,f"{GAN_SubType}_EEGGan_combined_weights.h5"))
+generator.save_weights(os.path.join(save_path,f"{GAN_SubType}_EEGGan_generator_weights.h5"))
+discriminator.save_weights(os.path.join(save_path,f"{GAN_SubType}_EEGGan_discriminator_weights.h5"))
 
 
 pass
