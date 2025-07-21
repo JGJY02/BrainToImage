@@ -37,9 +37,9 @@ BTI_Objects
 BTI_Objects -> EEGViT_Personal -> BTI_Objects_ProgressiveGAN_dual
 
 ## Original Githubs that have been modified for the purposes of this project
-[Modified ACGAN and CNN encoder network by Tim Tanner](https://github.com/klankey/Brain_to_Image)
-[CAPSGAN](https://github.com/XifengGuo/CapsNet-Keras)
-[Progressive GAN](https://github.com/tkarras/progressive_growing_of_gans)
-[BRAINS (LSTM Encoder and Channel Evaluation)](https://github.com/mxs3203/EEGImage)
-[EEGViT](https://github.com/ruiqiRichard/EEGViT)
+Modified ACGAN and CNN encoder [link](https://github.com/klankey/Brain_to_Image)  
+EEGViT[link](https://github.com/ruiqiRichard/EEGViT)  
+BRAINS (LSTM Encoder and Channel Evaluation)[link](https://github.com/mxs3203/EEGImage)  
+CAPSGAN[link](https://github.com/XifengGuo/CapsNet-Keras)  
+Progressive GAN[link](https://github.com/tkarras/progressive_growing_of_gans)  
 
