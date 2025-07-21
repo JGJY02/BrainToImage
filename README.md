@@ -27,11 +27,11 @@ This is the GitHub Repository with all files relating to the master's dissertati
 
 To recreate the models from the paper, the following folder orders should be used. 
 
-<u> CNN - ACGAN (B, M and C) - 128 or 512</u> \n
+<u> CNN - ACGAN (B, M and C) - 128 or 512</u>  
 BTI_Objects
 
-<u> LSTM - DCGAN - 512 and LSTM - DCGAN - 512 </u> \n
+<u> LSTM - DCGAN - 512 and LSTM - DCGAN - 512 </u>  
 BTI_Objects
 
-<u> ViT - ProGAN - 512 </u> \n
+<u> ViT - ProGAN - 512 </u>  
 BTI_Objects -> EEGViT_Personal -> BTI_Objects_ProgressiveGAN_dual
