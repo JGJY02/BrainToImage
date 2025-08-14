@@ -224,9 +224,6 @@ Y_secondary = np.vstack((y_secondary_train_data, y_secondary_test_data))
 # Y_secondary = Y_secondary[:100]
 # X_img = X_img[:100]
 
-Y_eeg = [f"{a}-{b}" for a, b in zip(Y_primary, Y_secondary)]  # or tuple: list(zip(y1, y2))
-
-
 num_of_class_labels = Y_primary.shape[1]
 num_of_class_type_labels = Y_secondary.shape[1]
 

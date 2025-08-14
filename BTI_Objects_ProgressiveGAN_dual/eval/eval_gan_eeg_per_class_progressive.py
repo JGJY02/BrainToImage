@@ -31,6 +31,7 @@ import tensorflow as tf
 import torch
 from models.EEGViT_pretrained_dual import (EEGViT_pretrained_dual)
 from torch.utils.data import DataLoader, TensorDataset
+# from torch.utils.data import Dataset as TorchDatasetClass
 from tqdm import tqdm
 
 ## new metrics
@@ -101,62 +102,57 @@ valid_threshold = 0.5
 
 
 ## load the eeg training data
-dataset_dir = "2022Data"
-run_id = "934thresh_"
 eeg_dataset = f"{config.eeg_dataset_dir}/{config.eeg_dataset_pickle}"
 print(f"Reading data file {eeg_dataset}")
 eeg_data = pickle.load(open(eeg_dataset, 'rb'), encoding='bytes')
 label_dictionary = eeg_data['dictionary']
-signals = eeg_data['x_test_eeg']
-to_labels = np.argmax(eeg_data['y_test'],axis=1)  ## since eeg labels are in one-hot encoded format
 
-## load the object trainig data
-print(f" Loading Object images from {eeg_dataset}")
-(x_test, y_test) = (eeg_data['x_test_img'], eeg_data['y_test'])
-print(eeg_data['x_train_img'].shape)
+if config.evaluation_type == "standard":
 
-print(x_test.shape)
+    signals = eeg_data['x_test_eeg']
+    y_primary_test = eeg_data['y_test']
+    y_secondary_test = eeg_data['y_secondary_test']
+    x_img_test = eeg_data['x_test_img']
+    to_labels = np.argmax(eeg_data['y_test'],axis=1)  ## since eeg labels are in one-hot encoded format
 
+
+elif config.evaluation_type == "crossVal":
+    x_train_eeg_data, y_primary_train_data, y_secondary_train_data, x_test_eeg_data, y_primary_test_data, y_secondary_test_data = eeg_data['x_train_eeg'], eeg_data['y_train'], eeg_data['y_secondary_train'], eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test']
+    train_imgs, test_imgs = eeg_data['x_train_img'] , eeg_data['x_test_img']
+
+    # x_train_img = (np.array(train_imgs) - 127.5) / 127.5
+    # x_test_img = (np.array(test_imgs) - 127.5) / 127.5
+
+    X_img = np.vstack((train_imgs, test_imgs))
+    X_eeg = np.vstack((x_train_eeg_data, x_test_eeg_data))
+    Y_primary = np.vstack((y_primary_train_data, y_primary_test_data))
+    Y_secondary = np.vstack((y_secondary_train_data, y_secondary_test_data))
+
+    fold_indexes = os.path.join(config.eeg_dataset_idx_dir, config.model_eval,config.fold_indices)
+    index_dictionary = np.load(fold_indexes,allow_pickle = True).item()
+    train_index = index_dictionary[config.fold]["train_idx"]
+    test_index = index_dictionary[config.fold]["val_idx"]
+
+    signals = X_eeg[test_index]
+    y_primary_test = Y_primary[test_index]
+    y_secondary_test = Y_secondary[test_index]
+    x_img_test = X_img[test_index]
+
+    to_labels = np.argmax(y_primary_test,axis=1)  ## since eeg labels are in one-hot encoded format
+
+    
 for i in class_labels:
     total = np.sum(to_labels == i)
     print(f"For Class {i} we have {total} Instances")
-    # selected_indices = np.random.choice(cls_indices, 400, replace=False)  # Sample 400 indices
-    # X_selected.append(X[selected_indices])
-    # y_selected.append(y[selected_indices])
 
 #Mini batch size
 
 # ## #############
 # # Build EEG Gan
 # ## #############
-# prefix = "MoGM"
-# model_dir = f"./brain_to_Image/EEGgan/EEG_saved_model/{prefix}/{prefix}_"
+resume_run_id           = config.resume_run_id
+resume_snapshot         = config.resume_snapshot
 
-# if prefix == "MoGC":
-#     generator = build_MoGCgenerator(eeg_latent_dim,1,len(class_labels))
-# elif prefix == "MoGM":
-#     generator = build_MoGMgenerator(eeg_latent_dim,1,len(class_labels))
-# elif prefix == "Basic":
-#     generator = build_generator(eeg_latent_dim,1,len(class_labels))
-
-# #generator = build_MoGMgenerator(eeg_latent_dim,1,len(class_labels))
-# #generator = build_MoGCgenerator(eeg_latent_dim,1,len(class_labels))
-
-# generator.load_weights(f"{model_dir}EEGGan_generator_weights.h5")
-# discriminator = build_discriminator((28,28,1),len(class_labels))
-# combined = build_EEGgan(eeg_latent_dim,len(class_labels),generator,discriminator)
-# combined.load_weights(f"{model_dir}EEGgan_combined_weights.h5")
-# resume_run_id           = os.path.join("results", "042-pgan-mnist-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
-# resume_snapshot         = 10754        # Snapshot index to resume training from, None = autodetect.
-resume_run_id           = os.path.join("results", "086-pgan-objects_transformer_dual_2_512_64_large-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
-resume_snapshot         = 9827 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
-
-
-# #load generator to ekras model
-# print(generator)
-# layer_names = ['images_out']
-# generator_outputs = [generator.get_layer(layer_name).output for layer_name in layer_names]
-# generator_model = Model(inputs=generator.input, outputs=generator_outputs)
 
 ## #############
 # EEG Classifier/Encoder
@@ -243,14 +239,14 @@ for i in class_labels:  ## outer loop per class
     print("Current class label is : ", i)
     ## get all EEG data for class i
     matching_indices = np.where(to_labels == i)
-    true_images = eeg_data['x_test_img'][matching_indices[0]]
-    labels = eeg_data['y_test'][matching_indices[0]]
+    true_images = x_img_test[matching_indices[0]]
+    labels = y_primary_test[matching_indices[0]]
 
     encoded_eegs = encoded_latents[matching_indices[0]]
     conditioning_labels_raw = encoded_labels[matching_indices[0]]
     
     conditioning_labels_type = encoded_type_labels[matching_indices[0]]
-    true_conditioning_labels_type = eeg_data['y_secondary_test'][matching_indices[0]]
+    true_conditioning_labels_type = y_secondary_test[matching_indices[0]]
 
     with tf.Graph().as_default(), tfutil.create_session(config.tf_config).as_default():
         with tf.compat.v1.device('/gpu:0'):
@@ -538,7 +534,7 @@ def save_imgs_horizontal_vertical(images, output_dir):
     plt.savefig(output_path, dpi=300)
     plt.close()
 
-inception = InceptionScore(splits=10, normalize=True).to(device)  # normalize=True = expects [0, 1] images
+inception = InceptionScore().to(device)  # normalize=True = expects [0, 1] images
 
 comparison_imgs = []
 
@@ -670,7 +666,7 @@ for i in class_labels:
                 temp_hold_imgs.append([y_true, y_pred])
                 # print(temp_hold_imgs[0][0].dtype)
                 types_added.append(j)
-            if len(types_added) == eeg_data['y_secondary_test'].shape[1] and not sampling_imgs_taken:
+            if len(types_added) == y_secondary_test.shape[1] and not sampling_imgs_taken:
 
                 classes_added.append(i)
                 comparison_imgs.append(temp_hold_imgs)
@@ -723,13 +719,34 @@ for i in class_labels:
 
 
     # Convert all images
-    tensor_images = torch.stack([transform(img) for img in class_data['generated']]).to(device)
-    inception_value = inception(tensor_images)
+    # Obtain inception for fake
+    tensor_images_fake = torch.stack([transform(img) for img in class_data['generated']]).to(device)
+    tensor_images_fake_dataset = TensorDataset(tensor_images_fake) 
+    dataloader = DataLoader(tensor_images_fake_dataset, batch_size=32, shuffle=False)
+
+    inception.reset()
+    for (batch,) in tqdm(dataloader, desc="Computing Inception Score for genereated"):
+        inception.update(batch.to(device))
+    inception_value = inception.compute()
     inception_value = [tensor.cpu() for tensor in inception_value]
 
+
+    #Obtain inception for real
     tensor_images_real = torch.stack([transform(img) for img in class_data['true']]).to(device)
-    inception_value_real = inception(tensor_images_real)
+    tensor_images_real_dataset = TensorDataset(tensor_images_real) 
+    dataloader = DataLoader(tensor_images_real_dataset, batch_size=32, shuffle=False)
+
+    inception.reset()
+    for (batch,) in tqdm(dataloader, desc="Computing Inception Score for Real"):
+        inception.update(batch.to(device))
+    inception_value_real = inception.compute()
     inception_value_real = [tensor.cpu() for tensor in inception_value_real]
+    
+    # tensor_images = torch.stack([transform(img) for img in class_data['generated']])
+    # inception_value = inception(tensor_images)
+
+    # tensor_images_real = torch.stack([transform(img) for img in class_data['true']])
+    # inception_value_real = inception(tensor_images_real)
 
     #F1
     F1_value = f1_score(true_labels_array, conditioning_labels_array, average='macro')
@@ -791,10 +808,16 @@ mean_evaluation = {'average_ssim':np.mean(mean_ssim_scores),'average_rmse':np.me
 
 
 ##Inception on whole dataset
+transform = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize((299, 299)),        # InceptionV3 expects 299x299
+    transforms.PILToTensor(),                # Converts to [0, 1] float tensor and rearranges to (C, H, W)
+])
+
 
 
 # Batch data to allow larger dataset processing
-all_tensor_images = torch.stack([transform(img) for img in all_generated_images]).to(device)
+all_tensor_images = torch.stack([transform(img) for img in all_generated_images])
 all_tensor_dataset = TensorDataset(all_tensor_images) 
 dataloader = DataLoader(all_tensor_dataset, batch_size=32, shuffle=False)
 
@@ -806,7 +829,7 @@ inception_value = inception.compute()
 inception_value = [tensor.cpu() for tensor in inception_value]
 
 # Batch data to allow larger dataset processing
-all_real_tensor_images = torch.stack([transform(img) for img in all_true_images]).to(device)
+all_real_tensor_images = torch.stack([transform(img) for img in all_true_images])
 all_real_tensor_dataset = TensorDataset(all_real_tensor_images) 
 dataloader_real = DataLoader(all_real_tensor_dataset, batch_size=32, shuffle=False)
 
@@ -816,6 +839,12 @@ for (batch,) in tqdm(dataloader_real, desc="Computing Inception Score for real")
 
 real_inception_value = inception.compute()
 real_inception_value = [tensor.cpu() for tensor in real_inception_value]
+
+# all_tensor_images = torch.stack([transform(img) for img in all_generated_images])
+# inception_value = inception(all_tensor_images)
+
+# all_real_tensor_images = torch.stack([transform(img) for img in all_true_images])
+# real_inception_value = inception(all_real_tensor_images)
 
 mean_text_to_print = f"Average Class Results: mean ssim: {mean_evaluation['average_ssim']:.2f}, mean rmse: {mean_evaluation['average_rmse']:.2f}, mean psnr: {mean_evaluation['average_psnr']:.2f}, \
     mean fsim: {mean_evaluation['average_fsim']:.2f}, mean uiq: {mean_evaluation['average_uiq']:.2f}, mean classification acc: {mean_evaluation['average_accuracy']:.1%} ,mean type classification acc: {mean_evaluation['average_type_accuracy']:.1%} \n \

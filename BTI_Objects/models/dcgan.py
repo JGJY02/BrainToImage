@@ -26,7 +26,7 @@ Date: 01/07/2024
 Version: <Version number>
 
 Usage:
-    build ACGAN model
+    build DCGAN model
 
 Notes:
     <Any additional notes or considerations>

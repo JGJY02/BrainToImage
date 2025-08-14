@@ -21,13 +21,94 @@ class EasyDict(dict):
 data_dir = 'datasets/processed_dataset'
 root_dir = 'datasets/processed_dataset'
 
-category = "All" #"sub-01"
-eeg_dataset_dir = f"{root_dir}/filter_mne_car/{category}"
-eeg_dataset_pickle = f"000thresh_AllStack_large_Transformer_dual_2.pkl" #000thresh_AllStack_Transformer_dual_2_unseen #"000thresh_AllStackLstm_{category}.pkl" #"934thresh_processed_train_MindBigData2022_MNIST_EP.pkl" #"data_train_MindBigData2022_MNIST_EP.pkl"
 result_dir = 'results'
 
-eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_2_512_large"
-evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_large_unseen"
+
+# Evaluation paths
+
+# Model path
+resume_run_id           = os.path.join("results", "091-pgan-objects_transformer_dual_2_512_64_large-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
+resume_snapshot         = 12000 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
+
+## Choose where the dataset is being read for evaluation
+#For standard training and evaluations
+# evaluation_type = "standard"
+# category = "All" #"sub-01"
+# eeg_dataset_dir = f"{root_dir}/filter_mne_car/{category}"
+
+# Cross Validation
+
+evaluation_type = "crossVal" #"sub-01"
+category = evaluation_type
+eeg_dataset_dir = f"{root_dir}/filter_mne_car/All"
+model_eval = "Transformer_64_dual_2"
+fold_indices = f"saved_indexes.npy" # Import the indicies used from the pickle file
+
+## Generalization test Major and minor
+
+# Minor Unseen
+# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_unseen.pkl" 
+# eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_2_512"
+# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_unseen"
+ 
+# Major unseen
+# eeg_dataset_pickle = f"000thresh_AllStack_large_Transformer_dual_2_unseen.pkl" 
+# eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_2_512_large"
+# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_large_unseen"
+
+
+
+## Standard training evaluation
+# Minor Seen (standard)
+# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
+# eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_2_512"
+# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64"
+
+# # Major seen
+# eeg_dataset_pickle = f"000thresh_AllStack_large_Transformer_dual_2_64.pkl" 
+# eval_classifier_dir = f"trained_models/classifiers/All/000thresh/Transformer_dual_2_512_large"
+# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_large"
+
+## Cross validation paths
+
+
+# #Fold 0
+# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
+# fold = 0
+# eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
+# eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold0"
+# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold0"
+
+# #Fold 1
+eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
+fold = 1
+eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
+eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold{fold}"
+evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold{fold}"
+
+# #Fold 2
+# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
+# fold = 2
+# eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
+# eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold{fold}"
+# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold{fold}"
+
+
+# #Fold 3
+# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
+# fold = 3
+# eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
+# eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold{fold}"
+# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold{fold}"
+
+
+# #Fold 4
+# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
+# fold = 4
+# eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
+# eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold{fold}"
+# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold{fold}"
+
 #----------------------------------------------------------------------------
 TfOrTorch = "Torch" #Choose between TF or Torch
 dual = True
@@ -74,11 +155,11 @@ grid        = EasyDict(size='1080p', layout='random')       # Options for train.
 # desc += '-objects_transformer_dual_2_512_64';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64')
 
 #Cross validation fold datasets
-desc += '-objects_transformer_dual_2_512_64_fold0';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64_fold0')
+# desc += '-objects_transformer_dual_2_512_64_fold0';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64_fold0')
 # desc += '-objects_transformer_dual_2_512_64_fold1';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64_fold1')
 # desc += '-objects_transformer_dual_2_512_64_fold2';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64_fold2')
 # desc += '-objects_transformer_dual_2_512_64_fold3';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64_fold3')
-# desc += '-objects_transformer_dual_2_512_64_fold4';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64_fold4')
+desc += '-objects_transformer_dual_2_512_64_fold4';               dataset = EasyDict(tfrecord_dir='objects_transformer_dual_2_512_64_fold4')
 
 
 # Conditioning & snapshot options.

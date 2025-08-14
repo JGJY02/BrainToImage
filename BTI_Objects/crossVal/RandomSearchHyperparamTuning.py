@@ -25,7 +25,6 @@ import tensorflow as tf
 from tqdm import tqdm
 
 from sklearn.metrics import mean_squared_error, f1_score, precision_score, recall_score 
-from scikeras.wrappers import KerasModel
 
 from sklearn.model_selection import RandomizedSearchCV
 from scipy.stats import randint, uniform
@@ -138,6 +137,8 @@ def build_model(optimizer='adam', learning_rate=0.001, decay=0.0):
     return classifier
 
 
+model = build_model()
+model.summary()
 
 clf = KerasClassifier(model=build_model, verbose=0)
 
@@ -162,8 +163,15 @@ Y = {
     'EEG_Class_Labels': Y_primary,
     'EEG_Class_type_Labels': Y_secondary
 }
+combined = np.array([(a, b) for a, b in zip(Y_primary, Y_secondary)], dtype=object)
 
-random_search.fit(x_train, Y)
+print(X.shape)
+print(Y_primary.shape)
+print(Y_secondary.shape)
+
+# Y = np.array([Y_primary, Y_secondary])
+# print(Y.shape)
+random_search.fit(X, combined)
 
 print("Best Parameters:", random_search.best_params_)
 print("Best Score:", random_search.best_score_)
