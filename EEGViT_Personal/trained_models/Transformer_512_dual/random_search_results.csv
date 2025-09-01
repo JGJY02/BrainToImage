@@ -1,0 +1,2 @@
+batch_size,epochs,lr
+128,20,0.001

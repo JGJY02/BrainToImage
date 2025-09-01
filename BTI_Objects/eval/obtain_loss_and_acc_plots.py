@@ -8,8 +8,19 @@ import numpy as np
 main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
 os.chdir(main_dir) #Jared Edition
 
-save_path = "results/LSTM_DCGAN_512/" #"results/CNN_ACGAN_B_128_ori/" # results/CNN_Basic_ACGAN_512/ #
-hist_file = "LSTM_all_stacked_signals_dual_512_64_ori/history_LSTM_all_stacked_signals_dual_512_64_ori_final.pkl"  #CNN_all_stacked_signals_dual_128_ori/history_CNN_all_stacked_signals_dual_128_ori_final.pkl
+save_path = "results/LSTM_DCGAN_512/" #"results/CNN_ACGAN_B_128_ori/" 
+# save_path = "results/CNN_Basic_ACGAN_512/" 
+
+hist_file = "LSTM_all_stacked_signals_dual_512_64_ori/history_LSTM_all_stacked_signals_dual_512_64_ori_hyperparam_tuning.pkl"  
+# hist_file = "CNN_all_stacked_signals_dual_512_ori/history_CNN_all_stacked_signals_dual_512_ori_hyperparam_tuning.pkl"
+
+# hist_file = "CNN_all_stacked_signals_dual_512_28_ori/history_CNN_all_stacked_signals_dual_512_28_ori_final.pkl"
+
+#hist_file = CNN_all_stacked_signals_dual_128_ori/history_CNN_all_stacked_signals_dual_128_ori_final.pkl
+
+# descriptor = "final"
+descriptor = "hyperparamTuning"
+
 
 with open(f"trained_models/classifiers/All/000thresh/{hist_file}", "rb") as f:
     data = pickle.load(f)
@@ -32,7 +43,7 @@ def plot_graph(data, data1, data2, data3, lossPlot = True):
         # First plot
         fig, axs = plt.subplots(1, 3, figsize=(9, 10))  # You can also use (1, 3) for horizontal layout
 
-        save_name = "loss_plots.png"
+        save_name = f"loss_plots_{descriptor}.png"
         axs[0].plot(iterations, data[data1[0]], color='blue')
         axs[0].plot(iterations, data[data1[1]], color='red')
         text_to_print_1 = f"{data1[2]} \n Final Train: {data[data1[0]][-1]:.3f} ~ Val: {data[data1[1]][-1]:.3f}"
@@ -61,7 +72,7 @@ def plot_graph(data, data1, data2, data3, lossPlot = True):
     else:
         fig, axs = plt.subplots(1, 2, figsize=(9, 10))  # You can also use (1, 3) for horizontal layout
 
-        save_name = "acc_plots.png"
+        save_name = f"acc_plots_{descriptor}.png"
         # First plot
         axs[0].plot(iterations, data[data1[0]], color='blue')
         axs[0].plot(iterations, data[data1[1]], color='red')
@@ -90,7 +101,7 @@ def plot_total_loss_graph(data, data1, data2, data3, lossPlot = True):
     # First plot
     fig, axs = plt.subplots(1, 1, figsize=(6, 6))  # You can also use (1, 3) for horizontal layout
 
-    save_name = "total_loss_plots.png"
+    save_name = f"total_loss_plots_{descriptor}.png"
     axs.plot(iterations, data[data1[0]], color='blue')
     axs.plot(iterations, data[data1[1]], color='red')
     text_to_print_1 = f"{data1[2]} \n Final Train: {data[data1[0]][-1]:.3f} ~ Val: {data[data1[1]][-1]:.3f}"

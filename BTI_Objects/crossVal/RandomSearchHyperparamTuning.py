@@ -10,37 +10,47 @@ from keras.models import Sequential
 from keras.regularizers import l2
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.eegclassifier import convolutional_encoder_model_512_dual, convolutional_encoder_model_spectrogram, convolutional_encoder_model_spectrogram_stacked, LSTM_Classifier_dual_512, convolutional_encoder_model_128_dual
+from models.dual_models.eegclassifier import convolutional_encoder_model_512_dual, LSTM_Classifier_dual_512, convolutional_encoder_model_128_dual
 from models.transformer_classifier import EEGViT_raw
 
 import argparse
 import numpy as np
-# Import transformer
-from transformers  import ViTImageProcessor
-from sklearn.model_selection import StratifiedKFold
-from collections import Counter
-
-from keras.models import Model, Sequential
-import tensorflow as tf
-from tqdm import tqdm
-
-from sklearn.metrics import mean_squared_error, f1_score, precision_score, recall_score 
-
-from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import randint, uniform
-from scikeras.wrappers import KerasClassifier
-
+import itertools, random
 import pandas as pd
 
+# Import transformer
+
+"""
+Title: Training script for EEG Classification
+
+Purpose:
+    Testing  build and training of EEG classifier, Functional blocks for training
+    classification model
+
+Author: Tim Tanner
+Date: 01/07/2024
+Version: <Version number>
+
+Usage:
+    Run the script as is, uses the online MNIST dataset to train the GAN
+
+Notes:
+    <Any additional notes or considerations>
+
+Examples:
+    <Example usage scenarios>
+"""
 #Argument parser 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--root_dir', type=str, help="Directory to the dataset - CNN_encoder / LSTM_encoder / Transformer", default = "processed_dataset/filter_mne_car/CNN_encoder",required=False)
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
-parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_All.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
-parser.add_argument('--imageOrwindowed', type=str, help="spectrogram for image windowed for original", default = "windowed" , required=False)
-parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals_dual_512_28_ori", required=False)
-parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/classifiers/crossVal",required=False)
+parser.add_argument('--dataset_pickle', type=str, help="Dataset to use for training xxxthresh_(channels)stack(model)_(dataset) 000thresh_AllSlidingCNN_All.pkl / 000thresh_AllStackLstm_64_dual_All_2.pkl / 000thresh_AllStackTransformer_All", default = "000thresh_AllSlidingCNN_dual_28_All.pkl" , required=False)
+parser.add_argument('--model_type', type=str, help="CNN_spectrogram, CNN_windowed, LSTM, VIT", default = "CNN_windowed" , required=False)
+parser.add_argument('--model_name', type=str, help="Name of the model", default= "CNN_all_stacked_signals_dual_512_ori", required=False)
 parser.add_argument('--latent_size', type=int, help="Size of the latent, 128 or 512", default = 512, required=False)
+parser.add_argument('--output_dir', type=str, help="Directory to output", default = "trained_models/classifiers",required=False)
+parser.add_argument('--num_of_sets', type=int, help="Number of hyperparameter combinations to test", default = 60,required=False)
+
 
 args = parser.parse_args()
 
@@ -58,9 +68,7 @@ def save_model(model,name,path):
     with open(filename,"wb") as f:
         pickle.dump(model,f)
 
-    print("Model {} saved to {}".format(name,path))
-
-
+    print(f"Model {name} saved to {path}")
 
 ## Ensure main_dir is one file step back to allow access to all files
 main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
@@ -75,111 +83,120 @@ dataset_file_path = f"{dataset_dir_path}/{args.dataset_pickle}"
 
 
 output_dir_path = f"{args.output_dir}/"
-# output_file_path = f"{output_dir_path}/{run_id}_{args.model_name}"
 
 model_save_dir = os.path.join(output_dir_path,args.input_dir,f"{run_id}",model_name)
+if not os.path.exists(model_save_dir):
+    os.makedirs(model_save_dir)
 print(f"Saving Models to {model_save_dir}")
 
 
-print(f"** Reading data file {dataset_file_path}")
+print(f"** Reading data file {dataset_file_path} **")
 eeg_data = pickle.load(open(f"{dataset_file_path}", 'rb'), encoding='bytes')
-
-eeg_encoding_dim = args.latent_size
 x_train, y_train, y_secondary_train, x_test, y_test, y_secondary_test = eeg_data['x_train_eeg'], eeg_data['y_train'], eeg_data['y_secondary_train'], eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test']
 
-X = np.vstack((x_train, x_test))
-Y_primary = np.vstack((y_train, y_test))
-Y_secondary = np.vstack((y_secondary_train, y_secondary_test))
+print(f"** Now loading model {args.model_type}, with latent size: {args.latent_size}")
 
-def build_model(optimizer='adam', learning_rate=0.001, decay=0.0):
-    if args.imageOrwindowed == "spectrogram":
-        classifier = convolutional_encoder_model_spectrogram(x_train.shape[1], x_train.shape[2], 10) # _expanded
-        # classifier = convolutional_encoder_model_spectrogram_stacked(x_train.shape[2], x_train.shape[0], x_train.shape[1], 10) # _expanded
-        batch_size, num_epochs = 128, 250 #128, 150
+## For loop to test random parameters
 
-        print(x_train[0][0])
+param_space = {
+"batch_size": [32, 64, 128],
+# "epochs": [1,2,3],#
+"epochs": [15, 30, 45, 60, 75, 90, 105, 120, 135, 150],
+'lr': [1e-4, 1e-3, 1e-2]  
+}
 
-    elif args.imageOrwindowed == "LSTM":
+#Find all potential combos
+all_combos = list(itertools.product(*param_space.values()))
+# shuffle list
+random.shuffle(all_combos)
+# Extract desired number of samples
+if len(all_combos) > args.num_of_sets:
+    n_samples = args.num_of_sets
+else:
+    n_samples = len(all_combos)
+chosen = all_combos[:n_samples]
+
+# Extract dictionaries
+param_sets = [dict(zip(param_space.keys(), combo)) for combo in chosen]
+
+best_total_loss = -1
+best_acc = [0, 0]
+best_params = None
+
+for i in range(n_samples):
+    param_dict = param_sets[i]
+    print(param_dict)
+
+    batch_size = param_dict['batch_size']
+    num_epochs = param_dict['epochs']
+    lr = param_dict['lr']
+
+    # if args.model_type == "CNN_spectrogram":
+    #     classifier = convolutional_encoder_model_spectrogram(x_train.shape[1], x_train.shape[2], 10) # _expanded
+
+    if args.model_type == "LSTM":
 
         classifier = LSTM_Classifier_dual_512(x_train.shape[1], x_train.shape[2], 512, y_train.shape[1], y_secondary_train.shape[1])
-        batch_size, num_epochs = 128, 100 #128, 150
 
 
-    elif args.imageOrwindowed == "windowed":
-        if eeg_encoding_dim == 128:
+    elif args.model_type == "CNN_windowed":
+        if args.latent_size == 128:
             classifier = convolutional_encoder_model_128_dual(x_train.shape[1], x_train.shape[2], y_train.shape[1], y_secondary_train.shape[1])
-        elif eeg_encoding_dim == 512:
-            classifier = convolutional_encoder_model_512_dual(x_train.shape[1], x_train.shape[2], y_train.shape[1], y_secondary_train.shape[1])
+        elif args.latent_size == 512:
+            classifier = convolutional_encoder_model_512_dual(x_train.shape[1], x_train.shape[2], y_train.shape[1], y_secondary_train.shape[1])    
 
-    elif args.imageOrwindowed == "transformer":
-        print(x_train.shape)
+    elif args.model_type == "transformer":
         classifier = EEGViT_raw(x_train.shape[1], x_train.shape[2], 10)
-        batch_size, num_epochs = 128, 150 #128, 150
 
-    # Create optimizer with specified parameters
-    if optimizer == 'adam':
-        opt = optimizers.Adam(learning_rate=learning_rate, beta_1=0.9, decay=decay)
     else:
-        raise ValueError(f"Unsupported optimizer: {optimizer}")
+        raise ValueError(f"Error! Model type {args.model_type} does not exist!")
 
+    print(f"** Model {args.model_type}, with latent size: {args.latent_size} Successfuly loaded!")
+
+    # location for the trained model file
+    saved_model_file = os.path.join(model_save_dir, "eeg_classifier_adm5" + '_final' + '.h5')
+
+    # location for the intermediate model files
+    filepath = os.path.join(model_save_dir, "eeg_classifier_adm5" + "-model-improvement-{epoch:02d}.h5")  #{epoch:02d}-{val_accuracy:.2f}
+
+    # call back to save model files after each epoch (file saved only when the accuracy of the current epoch is max.)
+    callback_checkpoint = ModelCheckpoint(filepath, monitor='val_accuracy', verbose=False, save_best_only=True, mode='max')
+    variable_learning_rate = ReduceLROnPlateau(monitor='val_loss', factor = 0.2, patience = 2)
+
+    adm = optimizers.Adam(learning_rate=lr, beta_1=0.9, decay=1e-6)
+
+    # classifier.compile(loss='categorical_crossentropy', optimizer=adm, metrics=['accuracy'])
     classifier.compile(
         loss={
             'EEG_Class_Labels': 'categorical_crossentropy',
             'EEG_Class_type_Labels': 'categorical_crossentropy'
         },
-        optimizer=opt,
+        optimizer=adm,
 
         metrics={
             'EEG_Class_Labels': ['accuracy'],
             'EEG_Class_type_Labels': ['accuracy']
         }
     )
-    return classifier
+
+    # classifier.summary()
+    print("** Beginning to train model now!")
+    history = classifier.fit(x_train, [y_train, y_secondary_train], epochs=num_epochs, batch_size=batch_size, validation_split=0.25, verbose=False)
+    #classifier.load_weights(saved_model_file)
+    print("** Training and saving complete!")
 
 
-model = build_model()
-model.summary()
+    accuracy = classifier.evaluate(x_test, [y_test, y_secondary_test], batch_size=batch_size, verbose=False)
+    print(f"Test results are: {accuracy}")
 
-clf = KerasClassifier(model=build_model, verbose=0)
+    if (best_total_loss > accuracy[0] or best_total_loss == -1) and (best_acc <= accuracy[3:]):
+        best_total_loss = accuracy[0]
+        best_score = accuracy
+        best_params = param_dict
+        save_model(history.history, f"history_{str(model_name)}_hyperparam_tuning.pkl",model_save_dir)
 
 
-param_dist = {
-    "batch_size": [32, 64],
-    "epochs": [50, 100, 150],
-    'model__learning_rate': uniform(1e-4, 9e-3)  # learning rate from 0.0001 to 0.0099
-
-}
-
-random_search = RandomizedSearchCV(
-    estimator=clf,
-    param_distributions=param_dist,
-    n_iter=20,
-    cv=5,
-    verbose=1,
-    scoring=None  # custom scoring can be passed if needed
-)
-
-Y = {
-    'EEG_Class_Labels': Y_primary,
-    'EEG_Class_type_Labels': Y_secondary
-}
-combined = np.array([(a, b) for a, b in zip(Y_primary, Y_secondary)], dtype=object)
-
-print(X.shape)
-print(Y_primary.shape)
-print(Y_secondary.shape)
-
-# Y = np.array([Y_primary, Y_secondary])
-# print(Y.shape)
-random_search.fit(X, combined)
-
-print("Best Parameters:", random_search.best_params_)
-print("Best Score:", random_search.best_score_)
-
-## Save fold results
+print(best_params)
+df = pd.DataFrame([best_params])
 main_save_dir = os.path.join(output_dir_path, args.input_dir,f"{run_id}",model_name)
-results_df = pd.DataFrame(random_search.cv_results_)
-print(results_df.head())  # Show first few rows
-
-# Optional: Save to CSV
-results_df.to_csv(f"{main_save_dir}/random_search_results.csv", index=False)
+df.to_csv(f"{main_save_dir}/random_search_results.csv", index=False)

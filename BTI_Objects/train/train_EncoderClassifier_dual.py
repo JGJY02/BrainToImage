@@ -10,7 +10,7 @@ from keras.models import Sequential
 from keras.regularizers import l2
 
 sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
-from models.dual_models.eegclassifier import convolutional_encoder_model_512_dual, convolutional_encoder_model_spectrogram, convolutional_encoder_model_spectrogram_stacked, LSTM_Classifier_dual_512, convolutional_encoder_model_128_dual
+from models.dual_models.eegclassifier import convolutional_encoder_model_512_dual, LSTM_Classifier_dual_512, convolutional_encoder_model_128_dual
 from models.transformer_classifier import EEGViT_raw
 
 import argparse
@@ -90,11 +90,9 @@ eeg_data = pickle.load(open(f"{dataset_file_path}", 'rb'), encoding='bytes')
 x_train, y_train, y_secondary_train, x_test, y_test, y_secondary_test = eeg_data['x_train_eeg'], eeg_data['y_train'], eeg_data['y_secondary_train'], eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test']
 
 print(f"** Now loading model {args.model_type}, with latent size: {args.latent_size}")
-if args.model_type == "CNN_spectrogram":
-    classifier = convolutional_encoder_model_spectrogram(x_train.shape[1], x_train.shape[2], 10) # _expanded
-    batch_size, num_epochs = 128, 250 #128, 150
 
-elif args.model_type == "LSTM":
+
+if args.model_type == "LSTM":
 
     classifier = LSTM_Classifier_dual_512(x_train.shape[1], x_train.shape[2], 512, y_train.shape[1], y_secondary_train.shape[1])
     batch_size, num_epochs = 128, 100 #128, 150

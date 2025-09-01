@@ -27,7 +27,7 @@ result_dir = 'results'
 # Evaluation paths
 
 # Model path
-resume_run_id           = os.path.join("results", "091-pgan-objects_transformer_dual_2_512_64_large-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
+resume_run_id           = os.path.join("results", "098-pgan-objects_transformer_dual_2_512_64_fold4-cond-preset-v2-1gpu-fp32-GRAPH-HIST")        # Run ID or network pkl to resume training from, None = start from scratch.
 resume_snapshot         = 12000 #2104 # 4247        # Snapshot index to resume training from, None = autodetect.
 
 ## Choose where the dataset is being read for evaluation
@@ -71,43 +71,14 @@ fold_indices = f"saved_indexes.npy" # Import the indicies used from the pickle f
 
 ## Cross validation paths
 
-
-# #Fold 0
-# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
-# fold = 0
-# eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
-# eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold0"
-# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold0"
-
-# #Fold 1
+# Fold selection
 eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
-fold = 1
+fold = 4 #Choose between 0 - 4 depending on the fold desired
 eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
 eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold{fold}"
 evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold{fold}"
 
-# #Fold 2
-# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
-# fold = 2
-# eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
-# eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold{fold}"
-# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold{fold}"
 
-
-# #Fold 3
-# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
-# fold = 3
-# eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
-# eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold{fold}"
-# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold{fold}"
-
-
-# #Fold 4
-# eeg_dataset_pickle = f"000thresh_AllStack_Transformer_dual_2_64.pkl" 
-# fold = 4
-# eeg_dataset_idx_dir = f"{root_dir}/filter_mne_car/{category}"
-# eval_classifier_dir = f"trained_models/crossVal/Transformer_512_dual/fold{fold}"
-# evalOutputDir = f"{result_dir}/TransformerDual_ProGAN_2_512_64_fold{fold}"
 
 #----------------------------------------------------------------------------
 TfOrTorch = "Torch" #Choose between TF or Torch

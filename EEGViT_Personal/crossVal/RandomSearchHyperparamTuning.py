@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
+
 from models.EEGViT_pretrained import EEGViT_pretrained, EEGViT_pretrained_512
 from models.EEGViT import EEGViT_raw
 from models.ViTBase import ViTBase
@@ -8,28 +13,33 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 import numpy as np
-import os
 import pickle
+import itertools, random
+import pandas as pd
 
 '''
 models: EEGViT_pretrained; EEGViT_raw; ViTBase; ViTBase_pretrained
 '''
-eeg_data = pickle.load(open("dataset/000thresh_AllStack_large_Transformer_dual_2_64.pkl", 'rb'), encoding='bytes')
-eeg_data_unseen = pickle.load(open("dataset/000thresh_AllStack_large_Transformer_dual_2_unseen.pkl", 'rb'), encoding='bytes')
 
+## Ensure main_dir is one file step back to allow access to all files
+main_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__)))) 
+os.chdir(main_dir) #Jared Edition
+
+# eeg_data = pickle.load(open("dataset/000thresh_AllStack_large_Transformer_dual_2_64.pkl", 'rb'), encoding='bytes')
+
+eeg_data = pickle.load(open("dataset/000thresh_AllStack_Transformer_dual_2_64.pkl", 'rb'), encoding='bytes')
+eeg_data_unseen = pickle.load(open("dataset/000thresh_AllStack_large_Transformer_dual_2_unseen.pkl", 'rb'), encoding='bytes')
+num_of_sets = 60
 model = EEGViT_pretrained_512(eeg_data['y_train'].shape[1], eeg_data['y_secondary_train'].shape[1])
 
 # EEGEyeNet = MultiClassDataset('./dataset/000thresh_AllStack_Transformer_dual.pkl')
-save_path = "trained_models/Transformer_512_dual_large"
+# save_path = "trained_models/Transformer_512_dual_large"
+save_path = "trained_models/Transformer_512_dual"
 os.makedirs(save_path, exist_ok=True)
-batch_size = 64
-n_epoch = 15
-learning_rate = 1e-4
 
-criterion = nn.MSELoss()
 
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=6, gamma=0.1)
+
+
 
 def accuracy(targets, output):
     targets_label = torch.argmax(targets, 1)
@@ -40,7 +50,7 @@ def accuracy(targets, output):
     return correct
 
 
-def train(model, optimizer, scheduler = None):
+def train(model, best_total_loss, best_acc, best_params, optimizer, scheduler = None):
     '''
         model: model to train
         optimizer: optimizer to update weights
@@ -53,13 +63,13 @@ def train(model, optimizer, scheduler = None):
     print('create dataloader...')
     criterion = nn.CrossEntropyLoss()
 
-    # train =MultiClassDataset(eeg_data['x_train_eeg'], eeg_data['y_train'], eeg_data['y_secondary_train'])
-    # val = MultiClassDataset(eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test'])
-    # test = MultiClassDataset(eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test'])
-
     train =MultiClassDataset(eeg_data['x_train_eeg'], eeg_data['y_train'], eeg_data['y_secondary_train'])
-    val = MultiClassDataset(eeg_data_unseen['x_train_eeg'], eeg_data_unseen['y_train'], eeg_data_unseen['y_secondary_train'])
-    test = MultiClassDataset(eeg_data_unseen['x_test_eeg'], eeg_data_unseen['y_test'], eeg_data_unseen['y_secondary_test'])
+    val = MultiClassDataset(eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test'])
+    test = MultiClassDataset(eeg_data['x_test_eeg'], eeg_data['y_test'], eeg_data['y_secondary_test'])
+
+    # train =MultiClassDataset(eeg_data['x_train_eeg'], eeg_data['y_train'], eeg_data['y_secondary_train'])
+    # val = MultiClassDataset(eeg_data_unseen['x_train_eeg'], eeg_data_unseen['y_train'], eeg_data_unseen['y_secondary_train'])
+    # test = MultiClassDataset(eeg_data_unseen['x_test_eeg'], eeg_data_unseen['y_test'], eeg_data_unseen['y_secondary_test'])
 
     train_loader = DataLoader(train, batch_size=batch_size)
     val_loader = DataLoader(val, batch_size=batch_size)
@@ -282,7 +292,7 @@ def train(model, optimizer, scheduler = None):
         print(f"Epoch {epoch}, Test Results, Total Loss: {epoch_test_loss_total},Class Loss: {epoch_test_loss_1},Type Loss: {epoch_test_loss_2}  \
         Class acc: {epoch_test_acc_1:.2f}, Type acc: {epoch_test_acc_2:.2f}")
 
-        torch.save(model.state_dict(), f'{save_path}/eeg_classifier_adm5_{epoch+1}.pth')
+        # torch.save(model.state_dict(), f'{save_path}/eeg_classifier_adm5_{epoch+1}.pth')
 
 
 
@@ -295,9 +305,63 @@ def train(model, optimizer, scheduler = None):
         "train_acc_class": train_accuracies_1, "val_acc_class": val_accuracies_1, "test_acc_class": test_accuracies_1, \
         "train_acc_type": train_accuracies_2, "val_acc_type": val_accuracies_2, "test_acc_type": test_accuracies_2 \
 }
-    np.save(f'{save_path}/results.npy', results_dict)
-    torch.save(model.state_dict(), f'{save_path}/eeg_classifier_adm5_final.pth')
+
+    if (best_total_loss > val_losses[-1] or best_total_loss == -1) and (best_acc <= [train_accuracies_1[-1], train_accuracies_2[-1]]):
+
+        np.save(f'{save_path}/results_HyperparamTuning.npy', results_dict)
+        best_total_loss = val_losses[-1]
+        best_acc = [train_accuracies_1[-1], train_accuracies_2[-1]]
+        best_params = param_dict
+
+
+    return best_total_loss, best_acc, best_params
+    # torch.save(model.state_dict(), f'{save_path}/eeg_classifier_adm5_final.pth')
 
 
 if __name__ == "__main__":
-    train(model,optimizer=optimizer, scheduler=scheduler)
+
+    ## For loop to test random parameters
+
+    param_space = {
+    "batch_size": [32, 64, 128],
+    # "epochs": [1,2,3],#
+    "epochs": [5, 10, 15, 20, 25],
+    'lr': [1e-4, 1e-3, 1e-2]  
+    }
+
+    #Find all potential combos
+    all_combos = list(itertools.product(*param_space.values()))
+    # shuffle list
+    random.shuffle(all_combos)
+    # Extract desired number of samples
+    if len(all_combos) > num_of_sets:
+        n_samples = num_of_sets
+    else:
+        n_samples = len(all_combos)
+    chosen = all_combos[:n_samples]
+
+    # Extract dictionaries
+    param_sets = [dict(zip(param_space.keys(), combo)) for combo in chosen]
+
+    best_total_loss = -1
+    best_acc = [0, 0]
+    best_params = None
+
+    for i in range(n_samples):
+        param_dict = param_sets[i]
+        print(param_dict)
+
+        batch_size = param_dict['batch_size']
+        n_epoch = param_dict['epochs']
+        learning_rate = param_dict['lr']
+
+        criterion = nn.MSELoss()
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=6, gamma=0.1)
+
+        best_total_loss, best_acc, best_params = train(model,best_total_loss, best_acc, best_params, optimizer=optimizer,   scheduler=scheduler)
+    
+    print(best_params)
+    df = pd.DataFrame([best_params])
+    df.to_csv(f"{save_path}/random_search_results.csv", index=False)

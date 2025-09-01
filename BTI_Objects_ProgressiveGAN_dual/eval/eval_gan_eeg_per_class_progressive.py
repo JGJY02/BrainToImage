@@ -46,6 +46,8 @@ import torch
 from torchmetrics.image.inception import InceptionScore
 from torchvision import transforms
 
+import pandas as pd
+
 
 tf.compat.v1.disable_v2_behavior()
 tf.compat.v1.disable_eager_execution()
@@ -840,6 +842,12 @@ for (batch,) in tqdm(dataloader_real, desc="Computing Inception Score for real")
 real_inception_value = inception.compute()
 real_inception_value = [tensor.cpu() for tensor in real_inception_value]
 
+mean_evaluation['overall_real_inception'] = real_inception_value[0].numpy()
+mean_evaluation['overall_real_inception_std'] = real_inception_value[1].numpy()
+
+mean_evaluation['overall_fake_inception'] = inception_value[0].numpy()
+mean_evaluation['overall_fake_inception_std'] = inception_value[1].numpy()
+
 # all_tensor_images = torch.stack([transform(img) for img in all_generated_images])
 # inception_value = inception(all_tensor_images)
 
@@ -848,7 +856,7 @@ real_inception_value = [tensor.cpu() for tensor in real_inception_value]
 
 mean_text_to_print = f"Average Class Results: mean ssim: {mean_evaluation['average_ssim']:.2f}, mean rmse: {mean_evaluation['average_rmse']:.2f}, mean psnr: {mean_evaluation['average_psnr']:.2f}, \
     mean fsim: {mean_evaluation['average_fsim']:.2f}, mean uiq: {mean_evaluation['average_uiq']:.2f}, mean classification acc: {mean_evaluation['average_accuracy']:.1%} ,mean type classification acc: {mean_evaluation['average_type_accuracy']:.1%} \n \
-    Fake mean inception: {mean_evaluation['average_inception']:.2f} ~ mean stds: {mean_evaluation['average_stds']:.2f} | Real mean inception: {mean_evaluation['average_real_inception']:.2f} ~ mean stds: {mean_evaluation['average_real_stds']:.2f} | Overall Fake inception: {inception_value[0]:.2f} ~ Overall stds: {inception_value[1]:.2f} | Overall Real inception: {real_inception_value[0]:.2f} ~ Overall stds: {real_inception_value[1]:.2f}\n \
+    Fake mean inception: {mean_evaluation['average_inception']:.2f} ~ mean stds: {mean_evaluation['average_stds']:.2f} | Real mean inception: {mean_evaluation['average_real_inception']:.2f} ~ mean stds: {mean_evaluation['average_real_stds']:.2f} | Overall Fake inception: {mean_evaluation['overall_fake_inception']:.2f} ~ Overall stds: {mean_evaluation['overall_fake_inception_std']:.2f} | Overall Real inception: {mean_evaluation['overall_real_inception']:.2f} ~ Overall stds: {mean_evaluation['overall_real_inception_std']:.2f}\n \
     mean F1: {mean_evaluation['average_f1']:.2f}, mean recall: {mean_evaluation['average_recall']:.2f}, mean precision: {mean_evaluation['average_precision']:.2f} \n \
     mean type F1: {mean_evaluation['average_type_f1']:.2f}, mean type recall: {mean_evaluation['average_type_recall']:.2f}, mean type precision: {mean_evaluation['average_type_precision']:.2f} \n        "
 print(mean_text_to_print)
@@ -867,5 +875,14 @@ save_imgs_horizontal_vertical(comparison_imgs, output_dir)
 
 with open(f"{output_dir}/results.txt", "w") as file:
     file.write("\n".join(text_to_save) + "\n")
+
+
+
+# Create DataFrame
+evaluation[(class_labels[-1]+1)] = mean_evaluation
+df = pd.DataFrame.from_dict(evaluation, orient="index")
+
+# Export to Excel
+df.to_excel(f"{output_dir}/output.xlsx", index=True)
 
 pass
