@@ -38,5 +38,12 @@
   2. Run **crossval_Encoder_dual.py / crossval_Decoder_dual.py** (Note that before crossval_decoder_dual can be runned the corresponding crossval_encoder must exist, so for example to train LSTM-DCGAN crossval you need to have run the crossval_encoder_dual.py for the LSTM model)
   3. Done!
 
+## Running Cross Validation 
+  1. Go to CrossVal
+  2. run **crossVal_Encoder_dual.py** for encoder or **crossVal_Decoder_dual.py** for encoder and decoder result
+
+## Running hyperparameter tuning 
+  1. Go to CrossVal
+  2. run **RandomSearchHyperparamTuning.py**
 
 
