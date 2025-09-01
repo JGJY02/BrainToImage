@@ -19,4 +19,12 @@ Once training is complete, ensure that the transformer model is moved into train
 
 Evaluation of the transformer can be found under th BTI_Objects_ProgressiveGAN_dual as it evaluate the whole pipeline.
 
+## Running Cross Validation 
+  1. Go to CrossVal
+  2. run **crossVal_dualClass.py**
+  3. Results can be found under **trained_models/crossVal/model_name**!
 
+## Running hyperparameter tuning 
+  1. Go to CrossVal
+  2. run **RandomSearchHyperparamTuning.py**
+  3. Results can be found under **trained_models/model_name**!
