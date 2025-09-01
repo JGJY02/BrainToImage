@@ -26,26 +26,7 @@ from tqdm import tqdm
 
 from sklearn.metrics import mean_squared_error, f1_score, precision_score, recall_score 
 
-"""
-Title: Training script for EEG Classification
 
-Purpose:
-    Testing  build and training of EEG classifier, Functional blocks for training
-    classification model
-
-Author: Tim Tanner
-Date: 01/07/2024
-Version: <Version number>
-
-Usage:
-    Run the script as is, uses the online MNIST dataset to train the GAN
-
-Notes:
-    <Any additional notes or considerations>
-
-Examples:
-    <Example usage scenarios>
-"""
 #Argument parser 
 parser = argparse.ArgumentParser(description="Process some variables.")
 parser.add_argument('--input_dir', type=str, help="Directory to the dataset", default = "All",required=False)
